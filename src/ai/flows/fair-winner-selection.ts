@@ -17,7 +17,7 @@ const FairWinnerSelectionInputSchema = z.object({
     .array(
       z.object({
         userId: z.string().describe('Unique identifier for the user.'),
-        joinTime: z.date().describe('The time the user joined the draw.'),
+        joinTime: z.string().datetime({ message: "Join time must be a valid ISO 8601 date string" }).describe('The time the user joined the draw, as an ISO 8601 string.'),
       })
     )
     .describe('List of participants in the draw, with their user IDs and join times.'),

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -79,7 +80,7 @@ export default function DrawClient({ drawId }: DrawClientProps) {
     setShowConfetti(false);
 
     const aiInput: FairWinnerSelectionInput = {
-      participants: participants.map(p => ({ userId: p.userId, joinTime: p.joinTime })),
+      participants: participants.map(p => ({ userId: p.userId, joinTime: p.joinTime.toISOString() })),
       description: description,
     };
 
