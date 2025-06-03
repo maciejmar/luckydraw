@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -8,15 +9,20 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CreateDrawClient() {
   const [description, setDescription] = useState('');
   const router = useRouter();
+  const { toast } = useToast();
 
   const handleCreateDraw = () => {
     if (description.trim() === '') {
-      // TODO: Add toast notification for error
-      alert('Please provide a description for the draw.');
+      toast({
+        title: 'Description Required',
+        description: 'Please provide a description for the draw.',
+        variant: 'destructive',
+      });
       return;
     }
     const drawId = uuidv4();
@@ -26,8 +32,11 @@ export default function CreateDrawClient() {
       localStorage.setItem(`drawDescription-${drawId}`, description);
     } catch (error) {
       console.error("Failed to save to localStorage", error);
-      // Fallback or error handling if localStorage is not available
-      alert("Could not save draw details. Please ensure cookies/localStorage are enabled.");
+      toast({
+        title: 'Storage Error',
+        description: 'Could not save draw details. Please ensure cookies/localStorage are enabled.',
+        variant: 'destructive',
+      });
       return;
     }
     router.push(`/draw/${drawId}`);
