@@ -91,8 +91,9 @@ export default function DrawClient({ drawId }: DrawClientProps) {
       toast({ title: 'Winner Selected!', description: 'The lucky winner has been chosen.', className: 'bg-primary text-primary-foreground' });
     } catch (err) {
       console.error('Error selecting winner:', err);
-      setError('Failed to select a winner. The AI might be having a moment. Please try again.');
-      toast({ title: 'AI Error', description: 'Could not select a winner. Please try again.', variant: 'destructive' });
+      const specificErrorMessage = err instanceof Error ? err.message : 'An unexpected error occurred while selecting the winner. Please try again.';
+      setError(specificErrorMessage);
+      toast({ title: 'AI Error', description: specificErrorMessage, variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
