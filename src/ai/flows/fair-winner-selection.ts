@@ -1,4 +1,4 @@
-// FairWinnerSelection.ts
+
 'use server';
 
 /**
@@ -56,7 +56,7 @@ Optional Description: {{description}}
 Based on the participant list, select a winner and provide a reason for your selection.
 Ensure the winner is selected fairly, considering their participation time.
 
-Winner ID:`, // The AI should provide the winner ID based on the input.
+Winner ID:`, 
 });
 
 const fairWinnerSelectionFlow = ai.defineFlow(
@@ -66,7 +66,31 @@ const fairWinnerSelectionFlow = ai.defineFlow(
     outputSchema: FairWinnerSelectionOutputSchema,
   },
   async input => {
-    const {output} = await fairWinnerSelectionPrompt(input);
-    return output!;
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 2000; // 2 seconds
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const {output} = await fairWinnerSelectionPrompt(input);
+        return output!;
+      } catch (error: any) {
+        const errorMessage = error.message || '';
+        const isOverloadError = errorMessage.includes('503 Service Unavailable') || errorMessage.includes('model is overloaded') || errorMessage.includes('The model is overloaded');
+
+        if (!isOverloadError || attempt === MAX_RETRIES) {
+          console.error(`AI Winner Selection: Failed after ${attempt} attempts. Error:`, error);
+          // Re-throw the error to be caught by the client-side handler
+          throw new Error(isOverloadError ? 'The AI service is currently busy. Please try again in a few moments.' : 'An unexpected error occurred while selecting the winner.');
+        }
+        
+        console.warn(`AI Winner Selection: Attempt ${attempt} failed due to AI service overload. Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+    }
+    // This line should ideally not be reached if MAX_RETRIES > 0,
+    // as the loop will either return a result or throw an error.
+    // But as a fallback:
+    throw new Error('Failed to select winner after multiple retries due to AI service issues.');
   }
 );
+
