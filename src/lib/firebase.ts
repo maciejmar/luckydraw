@@ -15,11 +15,12 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Log the databaseURL for debugging purposes
+// Log the entire firebaseConfig for debugging purposes
 console.error(
-  'Firebase Initialization Check: Attempting to use databaseURL:', 
-  firebaseConfig.databaseURL,
-  '(If this is undefined, empty, or not a valid Firebase DB URL like "https://<YOUR-PROJECT-ID>.firebaseio.com" or "https://<YOUR-PROJECT-ID>.<region>.firebasedatabase.app", please check your .env file and restart the Next.js server.)'
+  'Firebase Initialization Check: Attempting to use firebaseConfig:', 
+  JSON.stringify(firebaseConfig, null, 2), // Stringify for better readability
+  '\nCheck if databaseURL is correct (e.g., "https://<YOUR-PROJECT-ID>.firebaseio.com" or "https://<YOUR-PROJECT-ID>.<region>.firebasedatabase.app").',
+  'Ensure all NEXT_PUBLIC_FIREBASE_... variables are correctly set in your .env (or .env.local) file and that you have RESTARTED your Next.js server after changes.'
 );
 
 // Initialize Firebase
@@ -80,3 +81,4 @@ export const updateDrawStatusInDb = async (drawId: string, status: DrawData['sta
 
 
 export { database };
+
