@@ -206,7 +206,7 @@ export default function DrawClient({ drawId }: DrawClientProps) {
                     <li
                       key={p.userId}
                       className={`p-2.5 rounded-md flex justify-between items-center text-sm shadow-sm transition-all duration-300 ease-in-out
-                        ${winnerParticipantDetails?.userId === p.userId 
+                        ${winnerParticipantDetails?.userId === p.userId && !isSpinning
                           ? 'bg-accent text-accent-foreground font-semibold ring-2 ring-offset-2 ring-accent scale-105' 
                           : 'bg-secondary hover:bg-secondary/80'}`
                       }
@@ -225,7 +225,7 @@ export default function DrawClient({ drawId }: DrawClientProps) {
               )}
             </ScrollArea>
             
-            {participants.length > 0 && !winner && (
+            {(participants.length > 0 && (!winner || isSpinning)) && (
               <div className="flex justify-center py-4 min-h-[340px] items-center">
                 <WheelOfFortune
                   participants={participants}
@@ -284,12 +284,10 @@ export default function DrawClient({ drawId }: DrawClientProps) {
               onClick={() => { 
                 setWinner(null); 
                 setShowConfetti(false); 
-                // Do not clear participants automatically, user might want to re-spin or see list
-                // setParticipants([]); 
                 setError(null); 
                 setWheelWinnerIndex(null);
-                setIsSpinning(false); // ensure spinning stops
-                setIsLoading(false); // ensure loading stops
+                setIsSpinning(false); 
+                setIsLoading(false); 
               }} 
               variant="secondary" 
               size="lg"
