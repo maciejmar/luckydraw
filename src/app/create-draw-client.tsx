@@ -8,15 +8,17 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { createDrawInDb } from '@/lib/firebase';
 
 export default function CreateDrawClient() {
   const [description, setDescription] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
 
-  const handleCreateDraw = () => {
+  const handleCreateDraw = async () => {
     if (description.trim() === '') {
       toast({
         title: 'Description Required',
@@ -25,21 +27,23 @@ export default function CreateDrawClient() {
       });
       return;
     }
+
+    setIsCreating(true);
     const drawId = uuidv4();
-    // Store description in localStorage to pass it to the draw page
-    // Note: localStorage is only accessible on the client side.
+    
     try {
-      localStorage.setItem(`drawDescription-${drawId}`, description);
+      await createDrawInDb(drawId, description.trim());
+      router.push(`/draw/${drawId}`);
     } catch (error) {
-      console.error("Failed to save to localStorage", error);
+      console.error("Failed to create draw in Firebase", error);
       toast({
         title: 'Storage Error',
-        description: 'Could not save draw details. Please ensure cookies/localStorage are enabled.',
+        description: 'Could not save draw details. Please try again.',
         variant: 'destructive',
       });
-      return;
+      setIsCreating(false);
     }
-    router.push(`/draw/${drawId}`);
+    // No finally setIsCreating(false) here, as navigation should occur on success.
   };
 
   return (
@@ -63,11 +67,16 @@ export default function CreateDrawClient() {
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
             className="text-base"
+            disabled={isCreating}
           />
         </div>
-        <Button onClick={handleCreateDraw} className="w-full text-lg py-6" size="lg">
-          <Sparkles className="mr-2 h-5 w-5" />
-          Generate Your Lucky Draw
+        <Button onClick={handleCreateDraw} className="w-full text-lg py-6" size="lg" disabled={isCreating}>
+          {isCreating ? (
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+          ) : (
+            <Sparkles className="mr-2 h-5 w-5" />
+          )}
+          {isCreating ? 'Creating Draw...' : 'Generate Your Lucky Draw'}
         </Button>
       </CardContent>
     </Card>
