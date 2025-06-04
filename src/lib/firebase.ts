@@ -16,6 +16,7 @@ const firebaseConfig = {
 };
 
 // Log the entire firebaseConfig for debugging purposes
+// This was the state of the log when the user first reported the console error with the config object.
 console.error(
   'Firebase Initialization Check: Attempting to use firebaseConfig:', 
   JSON.stringify(firebaseConfig, null, 2), // Stringify for better readability
