@@ -15,6 +15,13 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Log the databaseURL for debugging purposes
+console.error(
+  'Firebase Initialization Check: Attempting to use databaseURL:', 
+  firebaseConfig.databaseURL,
+  '(If this is undefined, empty, or not a valid Firebase DB URL like "https://<YOUR-PROJECT-ID>.firebaseio.com" or "https://<YOUR-PROJECT-ID>.<region>.firebasedatabase.app", please check your .env file and restart the Next.js server.)'
+);
+
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const database = getDatabase(app);
