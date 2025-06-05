@@ -29,7 +29,7 @@ let drawsStore: { [drawId: string]: DrawData } = {};
 // --- Draw Management Functions (In-Memory Version) ---
 
 export const createDrawInDb = async (drawId: string, description: string): Promise<void> => {
-  console.log(`[InMemoryStore] Attempting to create draw: ${drawId}`);
+  console.log(`[InMemoryStore] Attempting to create draw: ${drawId} with description: "${description}"`);
   if (drawsStore[drawId]) {
     console.warn(`[InMemoryStore] Draw with ID "${drawId}" already exists. Overwriting.`);
   }
@@ -43,8 +43,7 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
   };
   drawsStore[drawId] = newDrawData;
   console.log(`[InMemoryStore] Successfully created draw: ${drawId}`, newDrawData);
-  // Optional: log the entire store after creation for detailed debugging
-  // console.log(`[InMemoryStore] drawsStore after create for ${drawId}:`, JSON.stringify(drawsStore));
+  console.log(`[InMemoryStore] drawsStore keys after create for ${drawId}:`, Object.keys(drawsStore)); // Added this log
 };
 
 export const getDrawSnapshot = async (drawId: string): Promise<DrawData | null> => {
@@ -72,11 +71,11 @@ export const addParticipantToDb = async (drawId: string, participant: Participan
   if (draw.status !== 'open') {
     throw new Error('This draw is not open for new participants.');
   }
-  draw.participants = draw.participants || [];
+  draw.participants = draw.participants || []; // Ensure participants array exists
   const existingParticipant = draw.participants.find(p => p.name.toLowerCase() === participant.name.toLowerCase());
   if (existingParticipant) {
     console.warn(`[InMemoryStore] Participant with name "${participant.name}" already exists in draw ${drawId}. Not adding again.`);
-    return;
+    return; // Don't throw, just don't add
   }
   draw.participants.push(participant);
   console.log(`[InMemoryStore] Participant added. Current participants for ${drawId}:`, draw.participants);
@@ -108,3 +107,6 @@ export async function _clearDrawsStore(): Promise<void> {
   drawsStore = {};
   console.log("[InMemoryStore] Store cleared.");
 };
+
+// Explicitly no database export
+// export const database = {}; // Removed: Causes "A 'use server' file can only export async functions"
