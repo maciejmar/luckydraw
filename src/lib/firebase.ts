@@ -5,9 +5,7 @@ import type { Participant } from '@/app/draw/[drawId]/draw-client';
 import type { FairWinnerSelectionOutput } from '@/ai/flows/fair-winner-selection';
 
 // --- Firebase Configuration ---
-// These are your actual Firebase project credentials, directly embedded.
-// WARNING: This is NOT recommended for production. In a production environment,
-// these should be configured as environment variables.
+// Hardcoded Firebase configuration values
 const firebaseConfig = {
   apiKey: "AIzaSyAhmcUAe0st2EsG3lh-ZSkj73pNyGAIAjQ",
   authDomain: "luckydraw-a795n.firebaseapp.com",
@@ -16,40 +14,61 @@ const firebaseConfig = {
   storageBucket: "luckydraw-a795n.firebasestorage.app",
   messagingSenderId: "510173850315",
   appId: "1:510173850315:web:713dbfa96c2b8babbf494e",
-  measurementId: "G-D4HE7JT9NE"
+  measurementId: "G-D4HE7JT9NE", // Optional
 };
 
-// Simple sanity check for hardcoded values
-const essentialHardcodedKeys: (keyof typeof firebaseConfig)[] = [
-  'apiKey', 'authDomain', 'databaseURL', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'
+// Basic check for essential hardcoded Firebase configuration values
+const essentialConfigKeys: (keyof typeof firebaseConfig)[] = [
+  'apiKey', 'authDomain', 'databaseURL', 'projectId',
 ];
-let missingHardcodedValues: string[] = [];
-essentialHardcodedKeys.forEach(key => {
+let hardcodedConfigIsValid = true;
+const missingHardcodedKeys: string[] = [];
+
+essentialConfigKeys.forEach(key => {
   if (!firebaseConfig[key]) {
-    missingHardcodedValues.push(key);
+    missingHardcodedKeys.push(key);
+    hardcodedConfigIsValid = false;
   }
 });
 
-if (missingHardcodedValues.length > 0) {
+if (!hardcodedConfigIsValid) {
   const errorMessage = `
     ------------------------------------------------------------------------------------
-    INTERNAL FIREBASE CONFIGURATION ERROR in src/lib/firebase.ts:
+    CRITICAL FIREBASE CONFIGURATION ERROR IN THE SOURCE CODE:
     ------------------------------------------------------------------------------------
-    Some essential Firebase configuration values are missing or empty IN THE HARDCODED firebaseConfig object.
-    This likely means there was an error transcribing them from your Firebase project settings.
+    The hardcoded Firebase SDK configuration in src/lib/firebase.ts is missing essential values.
 
-    Missing or empty hardcoded values for:
-    ${missingHardcodedValues.map(v => `  - ${v}`).join('\n    ')}
+    Missing key(s) in the firebaseConfig object:
+${missingHardcodedKeys.map(v => `      - ${v}`).join('\n')}
 
-    Please double-check the firebaseConfig object in src/lib/firebase.ts against your
-    Firebase project settings in the Firebase Console.
+    Current hardcoded Firebase configuration:
+    ${JSON.stringify(firebaseConfig, null, 2)}
+
+    ------------------------------------------------------------------------------------
+    TO FIX THIS (these steps are performed by the AI developer):
+    ------------------------------------------------------------------------------------
+    1.  Ensure the Firebase credentials provided by the user are correct.
+    2.  Update the 'firebaseConfig' object in 'src/lib/firebase.ts' with all required values.
     ------------------------------------------------------------------------------------
   `;
-  throw new Error(errorMessage);
+  console.error(errorMessage);
+  // This error will halt execution and be shown prominently in the console.
+  // For client-side execution, it might not halt Next.js build but will prevent Firebase init.
+  if (typeof window === 'undefined') { // Only throw on server-side to potentially stop build
+    throw new Error(errorMessage);
+  } else {
+    // For client-side, log prominently and let UI handle lack of Firebase
+    console.error("Firebase cannot be initialized due to missing hardcoded config. App functionality will be affected.");
+  }
 }
 
 // Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+let app;
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
 const database = getDatabase(app);
 
 export interface DrawData {
@@ -73,12 +92,12 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
     createdAt: new Date().toISOString(),
     status: 'open',
   };
-  // Reverted to simpler set without explicit timeout or extensive logging
   try {
+    // console.log(`[Firebase] Attempting to create draw in DB (draws/${drawId}):`, JSON.stringify(newDrawData));
     await set(drawRef, newDrawData);
+    // console.log(`[Firebase] Successfully created draw in DB (draws/${drawId})`);
   } catch (error) {
-    console.error(`[Firebase] Error in createDrawInDb for draws/${drawId}:`, error);
-    // Re-throw the error to be handled by the calling function
+    // console.error(`[Firebase] Failed to create draw in DB (draws/${drawId}):`, error);
     if (error instanceof Error) {
       throw new Error(`Error creating draw '${drawId}' in Firebase: ${error.message}`);
     }
@@ -88,30 +107,25 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
 
 export const getDrawData = (drawId: string, callback: (data: DrawData | null) => void) => {
   const drawRef = ref(database, `draws/${drawId}`);
-  console.log(`[Firebase] Setting up listener for draw data: draws/${drawId}`);
   const listener = onValue(drawRef, (snapshot) => {
     const data = snapshot.exists() ? snapshot.val() as DrawData : null;
-    console.log(`[Firebase] Received data for draws/${drawId}:`, data ? JSON.stringify(data).substring(0,100) + "..." : null);
     callback(data);
   }, (error) => {
     console.error(`[Firebase] Error listening to draws/${drawId}:`, error);
-    callback(null); // Notify callback of error by passing null
+    callback(null);
   });
   return () => {
-    console.log(`[Firebase] Unsubscribing listener for draw data: draws/${drawId}`);
     off(drawRef, 'value', listener);
   };
 };
 
 export const addParticipantToDb = async (drawId: string, participant: Participant): Promise<void> => {
   const participantsRef = ref(database, `draws/${drawId}/participants`);
-  console.log(`[Firebase] Attempting to add participant to draws/${drawId}:`, JSON.stringify(participant));
   try {
     const snapshot = await get(participantsRef);
     const currentParticipants = snapshot.exists() ? snapshot.val() as Participant[] : [];
     const updatedParticipants = [...currentParticipants, participant];
     await set(participantsRef, updatedParticipants);
-    console.log(`[Firebase] Successfully added participant to draws/${drawId}`);
   } catch (error) {
     console.error(`[Firebase] Failed to add participant to draws/${drawId}:`, error);
     if (error instanceof Error) {
@@ -125,10 +139,8 @@ export const setDrawWinnerInDb = async (drawId: string, winner: FairWinnerSelect
   const updates: { [key: string]: any } = {};
   updates[`draws/${drawId}/winner`] = winner;
   updates[`draws/${drawId}/status`] = 'closed';
-  console.log(`[Firebase] Attempting to set winner for draws/${drawId}:`, JSON.stringify(winner));
   try {
     await update(ref(database), updates);
-    console.log(`[Firebase] Successfully set winner for draws/${drawId}`);
   } catch (error) {
     console.error(`[Firebase] Failed to set winner for draws/${drawId}:`, error);
      if (error instanceof Error) {
@@ -140,10 +152,8 @@ export const setDrawWinnerInDb = async (drawId: string, winner: FairWinnerSelect
 
 export const updateDrawStatusInDb = async (drawId: string, status: DrawData['status']): Promise<void> => {
   const statusRef = ref(database, `draws/${drawId}/status`);
-  console.log(`[Firebase] Attempting to update status for draws/${drawId} to: ${status}`);
   try {
     await set(statusRef, status);
-    console.log(`[Firebase] Successfully updated status for draws/${drawId} to: ${status}`);
   } catch (error) {
     console.error(`[Firebase] Failed to update status for draws/${drawId}:`, error);
     if (error instanceof Error) {
