@@ -1,7 +1,8 @@
 
 'use server';
 
-// This file now simulates a database using in-memory storage with polling.
+// This file now simulates a database using in-memory storage.
+// Data is temporary and lost on server restart or if multiple instances are used.
 
 import type { FairWinnerSelectionOutput } from '@/ai/flows/fair-winner-selection';
 
@@ -42,11 +43,24 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
   };
   drawsStore[drawId] = newDrawData;
   console.log(`[InMemoryStore] Successfully created draw: ${drawId}`, newDrawData);
+  // Optional: log the entire store after creation for detailed debugging
+  // console.log(`[InMemoryStore] drawsStore after create for ${drawId}:`, JSON.stringify(drawsStore));
 };
 
 export const getDrawSnapshot = async (drawId: string): Promise<DrawData | null> => {
   console.log(`[InMemoryStore] Fetching snapshot for draw: ${drawId}`);
-  return drawsStore[drawId] || null;
+  console.log(`[InMemoryStore] Current drawsStore state (keys: ${Object.keys(drawsStore).join(', ')}). Looking for ${drawId}.`);
+  // To see the full store content, uncomment the next line, but be wary of large objects in logs.
+  // console.log(`[InMemoryStore] Full drawsStore content:`, JSON.stringify(drawsStore));
+  
+  const draw = drawsStore[drawId] || null;
+  
+  if (!draw) {
+    console.warn(`[InMemoryStore] Draw ${drawId} NOT FOUND in store.`);
+  } else {
+    // console.log(`[InMemoryStore] Draw ${drawId} FOUND.`);
+  }
+  return draw;
 };
 
 export const addParticipantToDb = async (drawId: string, participant: Participant): Promise<void> => {
@@ -59,17 +73,12 @@ export const addParticipantToDb = async (drawId: string, participant: Participan
     throw new Error('This draw is not open for new participants.');
   }
   draw.participants = draw.participants || [];
-  // Ensure participant with the same name doesn't already exist (case-insensitive)
   const existingParticipant = draw.participants.find(p => p.name.toLowerCase() === participant.name.toLowerCase());
   if (existingParticipant) {
-    // This case should ideally be caught client-side, but as a safeguard:
     console.warn(`[InMemoryStore] Participant with name "${participant.name}" already exists in draw ${drawId}. Not adding again.`);
-    // Optionally throw an error or return a status
-    // throw new Error(`Participant with name "${participant.name}" already exists.`);
-    return; 
+    return;
   }
   draw.participants.push(participant);
-  drawsStore[drawId] = { ...draw }; // Ensure change is reflected if draw was a copy
   console.log(`[InMemoryStore] Participant added. Current participants for ${drawId}:`, draw.participants);
 };
 
@@ -81,7 +90,6 @@ export const setDrawWinnerInDb = async (drawId: string, winner: FairWinnerSelect
   }
   draw.winner = winner;
   draw.status = 'closed';
-  drawsStore[drawId] = { ...draw };
   console.log(`[InMemoryStore] Winner set for ${drawId}:`, draw.winner);
 };
 
@@ -92,7 +100,6 @@ export const updateDrawStatusInDb = async (drawId: string, status: DrawData['sta
     throw new Error(`Draw with ID "${drawId}" not found.`);
   }
   draw.status = status;
-  drawsStore[drawId] = { ...draw };
   console.log(`[InMemoryStore] Status updated for ${drawId}.`);
 };
 
