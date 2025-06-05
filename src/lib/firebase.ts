@@ -15,19 +15,6 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Log the entire firebaseConfig for debugging purposes
-// This was the state of the log when the user first reported the console error with the config object.
-console.error(
-  'Firebase Initialization Check: Attempting to use firebaseConfig:', 
-  JSON.stringify(firebaseConfig, null, 2), // Stringify for better readability
-  '\n\nCRITICAL CHECK: Examine the `databaseURL` above. If it shows placeholders like "MUST_REPLACE_..." or is undefined/empty, then:',
-  '\n1. YOU MUST EDIT YOUR LOCAL `.env` FILE (or `.env.local` if it exists) in the project root.',
-  '\n2. Replace ALL "MUST_REPLACE_..." placeholders with your ACTUAL Firebase project credentials.',
-  '\n3. The `databaseURL` should be like "https://<YOUR-PROJECT-ID>.firebaseio.com" or "https://<YOUR-PROJECT-ID>.<region>.firebasedatabase.app".',
-  '\n4. After saving the .env file, YOU MUST RESTART your Next.js development server (stop it with Ctrl+C and run `npm run dev` again).',
-  '\nThis error means Firebase cannot connect because these values are incorrect in your LOCAL ENVIRONMENT.\n'
-);
-
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const database = getDatabase(app);
