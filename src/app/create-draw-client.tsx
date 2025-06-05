@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { createDrawInDb } from '@/lib/firebase';
+import { createDrawInDb } from '@/lib/firebase'; // This now points to our in-memory store
 
 export default function CreateDrawClient() {
   const [description, setDescription] = useState('');
@@ -32,18 +32,24 @@ export default function CreateDrawClient() {
     const drawId = uuidv4();
     
     try {
+      // Using the in-memory store version
       await createDrawInDb(drawId, description.trim());
+      toast({
+        title: 'Draw Created (In-Memory)',
+        description: `Your draw "${description.trim()}" is ready! Navigating...`,
+      });
       router.push(`/draw/${drawId}`);
     } catch (error) {
       console.error("Failed to create draw or navigate:", error);
-      // Using a generic error message as per the original file state
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
       toast({
         title: 'Error Creating Draw',
-        description: `An error occurred. Please try again.`, 
+        description: `An error occurred: ${errorMessage}. Please try again.`, 
         variant: 'destructive',
       });
+    } finally {
       setIsCreating(false); 
-    } 
+    }
   };
 
   return (
@@ -54,7 +60,7 @@ export default function CreateDrawClient() {
           Create a New Draw
         </CardTitle>
         <CardDescription>
-          Enter a description for your draw. This will be visible to participants.
+          Enter a description for your draw. This will be visible to participants. (Data stored in memory, resets on server restart)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

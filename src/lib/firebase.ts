@@ -1,72 +1,17 @@
 
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getDatabase, ref, set, onValue, off, update, get } from 'firebase/database';
-import type { Participant } from '@/app/draw/[drawId]/draw-client';
+'use server';
+
+// This file now simulates a database using in-memory storage.
+
 import type { FairWinnerSelectionOutput } from '@/ai/flows/fair-winner-selection';
 
-// --- Firebase Configuration ---
-// Hardcoded Firebase configuration values
-const firebaseConfig = {
-  apiKey: "AIzaSyAhmcUAe0st2EsG3lh-ZSkj73pNyGAIAjQ",
-  authDomain: "luckydraw-a795n.firebaseapp.com",
-  databaseURL: "https://luckydraw-a795n.firebaseio.com",
-  projectId: "luckydraw-a795n",
-  storageBucket: "luckydraw-a795n.firebasestorage.app",
-  messagingSenderId: "510173850315",
-  appId: "1:510173850315:web:713dbfa96c2b8babbf494e",
-  measurementId: "G-D4HE7JT9NE", // Optional
-};
-
-// Basic check for essential hardcoded Firebase configuration values
-const essentialConfigKeys: (keyof typeof firebaseConfig)[] = [
-  'apiKey', 'authDomain', 'databaseURL', 'projectId',
-];
-let hardcodedConfigIsValid = true;
-const missingHardcodedKeys: string[] = [];
-
-essentialConfigKeys.forEach(key => {
-  if (!firebaseConfig[key]) {
-    missingHardcodedKeys.push(key);
-    hardcodedConfigIsValid = false;
-  }
-});
-
-if (!hardcodedConfigIsValid) {
-  const errorMessage = `
-    ------------------------------------------------------------------------------------
-    CRITICAL FIREBASE CONFIGURATION ERROR IN THE SOURCE CODE:
-    ------------------------------------------------------------------------------------
-    The hardcoded Firebase SDK configuration in src/lib/firebase.ts is missing essential values.
-
-    Missing key(s) in the firebaseConfig object:
-${missingHardcodedKeys.map(v => `      - ${v}`).join('\n')}
-
-    Current hardcoded Firebase configuration:
-    ${JSON.stringify(firebaseConfig, null, 2)}
-
-    ------------------------------------------------------------------------------------
-    TO FIX THIS (these steps are performed by the AI developer):
-    ------------------------------------------------------------------------------------
-    1.  Ensure the Firebase credentials provided by the user are correct.
-    2.  Update the 'firebaseConfig' object in 'src/lib/firebase.ts' with all required values.
-    ------------------------------------------------------------------------------------
-  `;
-  console.error(errorMessage);
-  if (typeof window === 'undefined') { 
-    throw new Error(errorMessage);
-  } else {
-    console.error("Firebase cannot be initialized due to missing hardcoded config. App functionality will be affected.");
-  }
+// --- Type Definitions ---
+export interface Participant {
+  userId: string;
+  name: string;
+  joinTime: string; // ISO string
+  color: string;
 }
-
-// Initialize Firebase
-let app;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
-}
-const database = getDatabase(app);
 
 export interface DrawData {
   drawId: string;
@@ -77,10 +22,30 @@ export interface DrawData {
   status: 'open' | 'selecting' | 'closed';
 }
 
-// --- Draw Management Functions ---
+// --- In-Memory Store ---
+let drawsStore: { [drawId: string]: DrawData } = {};
+let listenersStore: { [drawId: string]: Array<(data: DrawData | null) => void> } = {};
+
+// Helper to notify listeners
+const notifyListeners = (drawId: string) => {
+  const listeners = listenersStore[drawId] || [];
+  const data = drawsStore[drawId] || null;
+  listeners.forEach(listener => {
+    try {
+      listener(data);
+    } catch (e) {
+      console.error("Error in listener for drawId", drawId, e);
+    }
+  });
+};
+
+// --- Draw Management Functions (In-Memory Version) ---
 
 export const createDrawInDb = async (drawId: string, description: string): Promise<void> => {
-  const drawRef = ref(database, `draws/${drawId}`);
+  console.log(`[InMemoryStore] Attempting to create draw: ${drawId}`);
+  if (drawsStore[drawId]) {
+    console.warn(`[InMemoryStore] Draw with ID "${drawId}" already exists. Overwriting.`);
+  }
   const newDrawData: DrawData = {
     drawId,
     description,
@@ -89,72 +54,79 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
     createdAt: new Date().toISOString(),
     status: 'open',
   };
-  try {
-    await set(drawRef, newDrawData);
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(`Error creating draw '${drawId}' in Firebase: ${error.message}`);
-    }
-    throw new Error(`An unknown error occurred while creating the draw '${drawId}' in Firebase.`);
-  }
+  drawsStore[drawId] = newDrawData;
+  console.log(`[InMemoryStore] Successfully created draw: ${drawId}`, newDrawData);
+  notifyListeners(drawId);
 };
 
-export const getDrawData = (drawId: string, callback: (data: DrawData | null) => void) => {
-  const drawRef = ref(database, `draws/${drawId}`);
-  const listener = onValue(drawRef, (snapshot) => {
-    const data = snapshot.exists() ? snapshot.val() as DrawData : null;
-    callback(data);
-  }, (error) => {
-    console.error(`[Firebase] Error listening to draws/${drawId}:`, error);
-    callback(null);
-  });
+export const getDrawData = async (drawId: string, callback: (data: DrawData | null) => void): Promise<() => void> => {
+  console.log(`[InMemoryStore] Setting up listener for draw: ${drawId}`);
+  if (!listenersStore[drawId]) {
+    listenersStore[drawId] = [];
+  }
+  listenersStore[drawId].push(callback);
+
+  // Call immediately with current data
+  try {
+    callback(drawsStore[drawId] || null);
+  } catch (e) {
+    console.error("Error in initial callback for drawId", drawId, e);
+  }
+
+  // Return an unsubscribe function
   return () => {
-    off(drawRef, 'value', listener);
+    console.log(`[InMemoryStore] Tearing down listener for draw: ${drawId}`);
+    listenersStore[drawId] = (listenersStore[drawId] || []).filter(cb => cb !== callback);
+    if (listenersStore[drawId] && listenersStore[drawId].length === 0) {
+      delete listenersStore[drawId];
+    }
   };
 };
 
 export const addParticipantToDb = async (drawId: string, participant: Participant): Promise<void> => {
-  const participantsRef = ref(database, `draws/${drawId}/participants`);
-  try {
-    const snapshot = await get(participantsRef);
-    const currentParticipants = snapshot.exists() ? snapshot.val() as Participant[] : [];
-    const updatedParticipants = [...currentParticipants, participant];
-    await set(participantsRef, updatedParticipants);
-  } catch (error) {
-    console.error(`[Firebase] Failed to add participant to draws/${drawId}:`, error);
-    if (error instanceof Error) {
-      throw new Error(`Error adding participant to draw '${drawId}': ${error.message}`);
-    }
-    throw new Error(`An unknown error occurred while adding participant to draw '${drawId}'.`);
+  console.log(`[InMemoryStore] Adding participant to draw: ${drawId}`, participant);
+  const draw = drawsStore[drawId];
+  if (!draw) {
+    throw new Error(`Draw with ID "${drawId}" not found.`);
   }
+  if (draw.status !== 'open') {
+    throw new Error('This draw is not open for new participants.');
+  }
+  draw.participants = draw.participants || [];
+  draw.participants.push(participant);
+  drawsStore[drawId] = { ...draw }; 
+  console.log(`[InMemoryStore] Participant added. Current participants for ${drawId}:`, draw.participants);
+  notifyListeners(drawId);
 };
 
 export const setDrawWinnerInDb = async (drawId: string, winner: FairWinnerSelectionOutput): Promise<void> => {
-  const updates: { [key: string]: any } = {};
-  updates[`draws/${drawId}/winner`] = winner;
-  updates[`draws/${drawId}/status`] = 'closed';
-  try {
-    await update(ref(database), updates);
-  } catch (error) {
-    console.error(`[Firebase] Failed to set winner for draws/${drawId}:`, error);
-     if (error instanceof Error) {
-      throw new Error(`Error setting winner for draw '${drawId}': ${error.message}`);
-    }
-    throw new Error(`An unknown error occurred while setting winner for draw '${drawId}'.`);
+  console.log(`[InMemoryStore] Setting winner for draw: ${drawId}`, winner);
+  const draw = drawsStore[drawId];
+  if (!draw) {
+    throw new Error(`Draw with ID "${drawId}" not found.`);
   }
+  draw.winner = winner;
+  draw.status = 'closed';
+  drawsStore[drawId] = { ...draw };
+  console.log(`[InMemoryStore] Winner set for ${drawId}:`, draw.winner);
+  notifyListeners(drawId);
 };
 
 export const updateDrawStatusInDb = async (drawId: string, status: DrawData['status']): Promise<void> => {
-  const statusRef = ref(database, `draws/${drawId}/status`);
-  try {
-    await set(statusRef, status);
-  } catch (error) {
-    console.error(`[Firebase] Failed to update status for draws/${drawId}:`, error);
-    if (error instanceof Error) {
-      throw new Error(`Error updating status for draw '${drawId}': ${error.message}`);
-    }
-    throw new Error(`An unknown error occurred while updating status for draw '${drawId}'.`);
+  console.log(`[InMemoryStore] Updating status for draw: ${drawId} to ${status}`);
+  const draw = drawsStore[drawId];
+  if (!draw) {
+    throw new Error(`Draw with ID "${drawId}" not found.`);
   }
+  draw.status = status;
+  drawsStore[drawId] = { ...draw };
+  console.log(`[InMemoryStore] Status updated for ${drawId}.`);
+  notifyListeners(drawId);
 };
 
-export { database };
+// Function to clear the store, useful for testing or resetting state in dev
+export const _clearDrawsStore = async (): Promise<void> => {
+  drawsStore = {};
+  listenersStore = {};
+  console.log("[InMemoryStore] Store cleared.");
+};
