@@ -34,16 +34,23 @@ export default function CreateDrawClient() {
     try {
       await createDrawInDb(drawId, description.trim());
       router.push(`/draw/${drawId}`);
+      // If navigation is successful, the component might unmount,
+      // so isCreating will be reset by the finally block or on unmount.
     } catch (error) {
-      console.error("Failed to create draw in Firebase", error);
+      console.error("Failed to create draw or navigate:", error);
       toast({
-        title: 'Storage Error',
-        description: 'Could not save draw details. Please try again.',
+        title: 'Error Creating Draw',
+        description: `An error occurred: ${error instanceof Error ? error.message : String(error)}. Please try again.`,
         variant: 'destructive',
       });
+      // setIsCreating(false) is now handled by the finally block
+    } finally {
+      // This ensures the loading state is reset even if an error occurs
+      // or if router.push itself had an issue (though less likely for this symptom).
+      // If the component unmounts due to successful navigation before this runs,
+      // React handles setIsCreating on an unmounted component gracefully.
       setIsCreating(false);
     }
-    // No finally setIsCreating(false) here, as navigation should occur on success.
   };
 
   return (
