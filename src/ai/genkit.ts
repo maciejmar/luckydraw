@@ -1,4 +1,7 @@
 
+import { config } from 'dotenv';
+config(); // Call dotenv.config() here to load .env variables
+
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
@@ -22,3 +25,4 @@ export const ai = genkit({
   ],
   model: 'googleai/gemini-2.0-flash', // This is a default model, specific flows might override
 });
+
