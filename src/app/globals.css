@@ -2,101 +2,103 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Removed custom font-family rule
 body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+*/
 
 @layer base {
   :root {
-    --background: 220 20% 98%; /* Very light, slightly cool gray */
-    --foreground: 220 20% 20%; /* Dark, cool gray */
+    --background: 270 90% 98%; /* Very light lavender */
+    --foreground: 270 10% 20%; /* Dark lavender for text */
     
-    --card: 220 20% 98%;
-    --card-foreground: 220 20% 20%;
+    --card: 270 90% 98%;
+    --card-foreground: 270 10% 20%;
 
-    --popover: 220 20% 98%;
-    --popover-foreground: 220 20% 20%;
+    --popover: 270 90% 98%;
+    --popover-foreground: 270 10% 20%;
 
-    --primary: 210 60% 55%; /* Muted blue */
-    --primary-foreground: 210 30% 95%; /* Light gray/white for text on primary */
+    --primary: 270 100% 87%; /* Soft lavender - #D0BFFF */
+    --primary-foreground: 270 20% 30%; /* Darker lavender for text on primary */
 
-    --secondary: 210 40% 90%; /* Lighter muted blue */
-    --secondary-foreground: 210 30% 30%; /* Darker gray for text on secondary */
+    --secondary: 270 70% 93%; /* Lighter soft lavender */
+    --secondary-foreground: 270 15% 35%; /* Darker lavender for text on secondary */
 
-    --muted: 210 40% 90%;
-    --muted-foreground: 210 20% 50%; /* Medium cool gray */
+    --muted: 270 70% 93%;
+    --muted-foreground: 270 20% 55%; /* Medium lavender gray */
 
-    --accent: 30 80% 60%;   /* Muted orange */
-    --accent-foreground: 30 50% 15%; /* Dark brown/orange for text on accent */
+    --accent: 200 70% 80%;   /* Light blue - #A0D2EB */
+    --accent-foreground: 200 40% 25%; /* Darker blue for text on accent */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 30% 80%; /* Light muted blue border */
-    --input: 210 30% 94%;  /* Very light muted blue input background */
-    --ring: 210 60% 55%;   /* Muted blue for focus rings */
+    --border: 270 50% 85%; /* Light lavender border */
+    --input: 270 70% 95%;  /* Very light lavender input background */
+    --ring: 270 100% 87%;   /* Soft lavender for focus rings */
     
-    --chart-1: 210 60% 55%; /* Primary Blue */
-    --chart-2: 30 80% 60%;  /* Accent Orange */
-    --chart-3: 180 50% 50%; /* Muted Teal */
-    --chart-4: 210 40% 70%; /* Lighter Primary Blue */
-    --chart-5: 30 60% 75%;  /* Lighter Accent Orange */
+    --chart-1: 270 100% 87%; /* Primary Lavender */
+    --chart-2: 200 70% 80%;  /* Accent Blue */
+    --chart-3: 300 70% 85%; /* Muted Lilac */
+    --chart-4: 270 80% 92%; /* Lighter Primary Lavender */
+    --chart-5: 200 60% 88%;  /* Lighter Accent Blue */
     --radius: 0.5rem;
 
     /* Sidebar variables */
-    --sidebar-background: 220 20% 97%;
-    --sidebar-foreground: 220 20% 20%;
-    --sidebar-primary: 210 60% 55%;
-    --sidebar-primary-foreground: 210 30% 95%;
-    --sidebar-accent: 30 80% 60%;
-    --sidebar-accent-foreground: 30 50% 15%;
-    --sidebar-border: 210 30% 80%;
-    --sidebar-ring: 210 60% 55%;
+    --sidebar-background: 270 80% 97%;
+    --sidebar-foreground: 270 10% 20%;
+    --sidebar-primary: 270 100% 87%;
+    --sidebar-primary-foreground: 270 20% 30%;
+    --sidebar-accent: 200 70% 80%;
+    --sidebar-accent-foreground: 200 40% 25%;
+    --sidebar-border: 270 50% 85%;
+    --sidebar-ring: 270 100% 87%;
   }
   .dark {
-    --background: 220 20% 10%; /* Very dark cool gray */
-    --foreground: 220 20% 90%; /* Light cool gray for text */
+    --background: 270 20% 10%; /* Very dark lavender */
+    --foreground: 270 30% 90%; /* Light lavender for text */
 
-    --card: 220 20% 12%; /* Slightly lighter dark cool gray for cards */
-    --card-foreground: 220 20% 90%;
+    --card: 270 20% 12%; 
+    --card-foreground: 270 30% 90%;
 
-    --popover: 220 20% 10%;
-    --popover-foreground: 220 20% 90%;
+    --popover: 270 20% 10%;
+    --popover-foreground: 270 30% 90%;
 
-    --primary: 210 70% 50%; /* Slightly more saturated blue for dark mode */
-    --primary-foreground: 210 20% 95%; /* Almost white */
+    --primary: 270 80% 75%; /* Brighter Soft lavender for dark mode */
+    --primary-foreground: 270 10% 15%; 
 
-    --secondary: 210 30% 25%; /* Darker muted blue */
-    --secondary-foreground: 210 20% 85%; /* Lighter gray for text */
+    --secondary: 270 30% 25%; 
+    --secondary-foreground: 270 30% 85%; 
 
-    --muted: 210 30% 25%;
-    --muted-foreground: 210 20% 60%; /* Medium-light cool gray */
+    --muted: 270 30% 25%;
+    --muted-foreground: 270 20% 60%; 
 
-    --accent: 30 70% 55%;   /* Slightly more saturated orange for dark mode */
-    --accent-foreground: 30 30% 95%; /* Almost white */
+    --accent: 200 60% 70%;   /* Brighter Light blue for dark mode */
+    --accent-foreground: 200 20% 15%; 
 
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 210 20% 30%; /* Dark cool gray border */
-    --input: 210 20% 18%;  /* Dark cool gray input background */
-    --ring: 210 70% 50%;   /* Muted blue for focus rings */
+    --border: 270 20% 30%; 
+    --input: 270 20% 18%;  
+    --ring: 270 80% 75%;   
     
-    --chart-1: 210 70% 50%; /* Primary Blue - Dark */
-    --chart-2: 30 70% 55%;  /* Accent Orange - Dark */
-    --chart-3: 180 60% 45%; /* Muted Teal - Dark */
-    --chart-4: 210 50% 65%; /* Lighter Primary Blue - Dark */
-    --chart-5: 30 50% 70%;  /* Lighter Accent Orange - Dark */
+    --chart-1: 270 80% 75%; 
+    --chart-2: 200 60% 70%;  
+    --chart-3: 300 60% 70%; 
+    --chart-4: 270 70% 80%; 
+    --chart-5: 200 50% 80%;  
 
     /* Dark Sidebar variables */
-    --sidebar-background: 220 20% 12%;
-    --sidebar-foreground: 220 20% 90%;
-    --sidebar-primary: 210 70% 50%;
-    --sidebar-primary-foreground: 210 20% 95%;
-    --sidebar-accent: 30 70% 55%;
-    --sidebar-accent-foreground: 30 30% 95%;
-    --sidebar-border: 210 20% 30%;
-    --sidebar-ring: 210 70% 50%;
+    --sidebar-background: 270 20% 12%;
+    --sidebar-foreground: 270 30% 90%;
+    --sidebar-primary: 270 80% 75%;
+    --sidebar-primary-foreground: 270 10% 15%;
+    --sidebar-accent: 200 60% 70%;
+    --sidebar-accent-foreground: 200 20% 15%;
+    --sidebar-border: 270 20% 30%;
+    --sidebar-ring: 270 80% 75%;
   }
 }
 
@@ -106,5 +108,7 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    /* Apply a default sans-serif font stack if custom fonts are removed */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
   }
 }
