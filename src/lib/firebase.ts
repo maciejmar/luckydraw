@@ -5,10 +5,10 @@ import type { Participant } from '@/app/draw/[drawId]/draw-client'; // Adjust pa
 import type { FairWinnerSelectionOutput } from '@/ai/flows/fair-winner-selection';
 
 // --- Firebase Configuration ---
-// WARNING: These credentials are hardcoded for development in Firebase Studio.
-// This is NOT recommended for production. In a production environment,
-// these should be configured as environment variables in your hosting platform.
-
+// These are your actual Firebase project credentials.
+// For development in Firebase Studio, we are embedding them here.
+// WARNING: This is NOT recommended for production. In a production environment,
+// these should be configured as environment variables.
 const firebaseConfig = {
   apiKey: "AIzaSyAhmcUAe0st2EsG3lh-ZSkj73pNyGAIAjQ",
   authDomain: "luckydraw-a795n.firebaseapp.com",
@@ -17,11 +17,11 @@ const firebaseConfig = {
   storageBucket: "luckydraw-a795n.firebasestorage.app",
   messagingSenderId: "510173850315",
   appId: "1:510173850315:web:713dbfa96c2b8babbf494e",
-  measurementId: "G-D4HE7JT9NE" // Optional, for Firebase Analytics
+  measurementId: "G-D4HE7JT9NE" // Optional
 };
 
-// Check if all essential config values are present (even if hardcoded, good sanity check)
-const essentialConfigValues: (keyof typeof firebaseConfig)[] = [
+// Check if all essential config values are present in the hardcoded object
+const essentialConfigKeys: (keyof typeof firebaseConfig)[] = [
   'apiKey',
   'authDomain',
   'databaseURL',
@@ -31,25 +31,26 @@ const essentialConfigValues: (keyof typeof firebaseConfig)[] = [
   'appId'
 ];
 
-let missingValues: string[] = [];
-essentialConfigValues.forEach(key => {
+let missingHardcodedValues: string[] = [];
+essentialConfigKeys.forEach(key => {
   if (!firebaseConfig[key]) {
-    missingValues.push(key);
+    missingHardcodedValues.push(key);
   }
 });
 
-if (missingValues.length > 0) {
+if (missingHardcodedValues.length > 0) {
   const errorMessage = `
     ------------------------------------------------------------------------------------
-    CRITICAL FIREBASE CONFIGURATION ERROR (Hardcoded values):
+    INTERNAL FIREBASE CONFIGURATION ERROR in src/lib/firebase.ts:
     ------------------------------------------------------------------------------------
-    Even with hardcoded values, some essential Firebase configuration is missing or empty.
-    This should not happen if the values copied from Firebase Console were correct.
+    Some essential Firebase configuration values are missing or empty IN THE HARDCODED firebaseConfig object.
+    This likely means there was an error transcribing them from your Firebase project settings.
 
     Missing or empty hardcoded values for:
-    ${missingValues.map(v => `  - ${v}`).join('\n    ')}
+    ${missingHardcodedValues.map(v => `  - ${v}`).join('\n    ')}
 
-    Please double-check the values in src/lib/firebase.ts against your Firebase project settings.
+    Please double-check the firebaseConfig object in src/lib/firebase.ts against your
+    Firebase project settings in the Firebase Console.
     ------------------------------------------------------------------------------------
   `;
   throw new Error(errorMessage);
