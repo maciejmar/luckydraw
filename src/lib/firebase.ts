@@ -4,94 +4,57 @@ import { getDatabase, ref, set, onValue, off, update, get, child } from 'firebas
 import type { Participant } from '@/app/draw/[drawId]/draw-client'; // Adjust path as needed
 import type { FairWinnerSelectionOutput } from '@/ai/flows/fair-winner-selection';
 
-const requiredEnvVars: { name: string; value?: string }[] = [
-  { name: 'NEXT_PUBLIC_FIREBASE_API_KEY', value: process.env.NEXT_PUBLIC_FIREBASE_API_KEY },
-  { name: 'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN', value: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN },
-  { name: 'NEXT_PUBLIC_FIREBASE_DATABASE_URL', value: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL },
-  { name: 'NEXT_PUBLIC_FIREBASE_PROJECT_ID', value: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID },
-  { name: 'NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET', value: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET },
-  { name: 'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID', value: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID },
-  { name: 'NEXT_PUBLIC_FIREBASE_APP_ID', value: process.env.NEXT_PUBLIC_FIREBASE_APP_ID },
+// --- Firebase Configuration ---
+// WARNING: These credentials are hardcoded for development in Firebase Studio.
+// This is NOT recommended for production. In a production environment,
+// these should be configured as environment variables in your hosting platform.
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAhmcUAe0st2EsG3lh-ZSkj73pNyGAIAjQ",
+  authDomain: "luckydraw-a795n.firebaseapp.com",
+  databaseURL: "https://luckydraw-a795n.firebaseio.com", // Derived from projectId
+  projectId: "luckydraw-a795n",
+  storageBucket: "luckydraw-a795n.firebasestorage.app",
+  messagingSenderId: "510173850315",
+  appId: "1:510173850315:web:713dbfa96c2b8babbf494e",
+  measurementId: "G-D4HE7JT9NE" // Optional, for Firebase Analytics
+};
+
+// Check if all essential config values are present (even if hardcoded, good sanity check)
+const essentialConfigValues: (keyof typeof firebaseConfig)[] = [
+  'apiKey',
+  'authDomain',
+  'databaseURL',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId'
 ];
 
-const placeholderPattern = /MUST_REPLACE_WITH_YOUR_|YOUR_ACTUAL_|<YOUR_PROJECT_ID>/i;
-let problematicVars: string[] = [];
-
-requiredEnvVars.forEach((envVar) => {
-  if (!envVar.value || envVar.value.trim() === '' || placeholderPattern.test(envVar.value)) {
-    problematicVars.push(`${envVar.name} (current value: "${envVar.value || 'Not set/Empty'}")`);
+let missingValues: string[] = [];
+essentialConfigValues.forEach(key => {
+  if (!firebaseConfig[key]) {
+    missingValues.push(key);
   }
 });
 
-if (problematicVars.length > 0) {
-  const fullConfigAttempt = JSON.stringify(
-    Object.fromEntries(requiredEnvVars.map(v => [v.name.replace('NEXT_PUBLIC_FIREBASE_', '').toLowerCase(), v.value])),
-    null,
-    2
-  );
-
+if (missingValues.length > 0) {
   const errorMessage = `
     ------------------------------------------------------------------------------------
-    CRITICAL FIREBASE CONFIGURATION ERROR IN YOUR LOCAL ENVIRONMENT:
+    CRITICAL FIREBASE CONFIGURATION ERROR (Hardcoded values):
     ------------------------------------------------------------------------------------
-    The Firebase SDK cannot initialize because essential configuration is missing or incorrect.
-    
-    Problematic environment variable(s):
-    ${problematicVars.map(v => `  - ${v}`).join('\n    ')}
+    Even with hardcoded values, some essential Firebase configuration is missing or empty.
+    This should not happen if the values copied from Firebase Console were correct.
 
-    Current Firebase configuration values being read from your environment:
-    ${fullConfigAttempt}
+    Missing or empty hardcoded values for:
+    ${missingValues.map(v => `  - ${v}`).join('\n    ')}
 
-    ------------------------------------------------------------------------------------
-    TO FIX THIS (these steps are performed on YOUR local machine):
-    ------------------------------------------------------------------------------------
-    1.  OBTAIN YOUR CREDENTIALS: Go to your Firebase project in the Firebase Console
-        (https://console.firebase.google.com/). Navigate to Project Settings (gear icon)
-        -> General tab -> Your apps -> select your web app -> SDK setup and configuration (choose Config).
-        Copy all the values (apiKey, authDomain, databaseURL, projectId, etc.).
-
-    2.  EDIT YOUR LOCAL ENVIRONMENT FILE:
-        *   In the ROOT of your project directory on your computer, find or create a file named '.env.local'.
-            (This file is for local overrides and is prioritized by Next.js over '.env').
-        *   If '.env.local' does not exist, you can edit the '.env' file directly.
-
-    3.  UPDATE THE VARIABLES: In your chosen '.env.local' (or '.env') file, ensure ALL the
-        following variables are correctly set with your actual Firebase project values
-        (replace the "YOUR_ACTUAL_..." parts):
-
-        NEXT_PUBLIC_FIREBASE_API_KEY="YOUR_ACTUAL_API_KEY"
-        NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="YOUR_ACTUAL_AUTH_DOMAIN"
-        NEXT_PUBLIC_FIREBASE_DATABASE_URL="YOUR_ACTUAL_DATABASE_URL" 
-        # (e.g., "https://your-project-name.firebaseio.com" or "https://your-project-name.region.firebasedatabase.app")
-        NEXT_PUBLIC_FIREBASE_PROJECT_ID="YOUR_ACTUAL_PROJECT_ID"
-        NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="YOUR_ACTUAL_STORAGE_BUCKET"
-        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="YOUR_ACTUAL_MESSAGING_SENDER_ID"
-        NEXT_PUBLIC_FIREBASE_APP_ID="YOUR_ACTUAL_APP_ID"
-
-    4.  SAVE THE FILE.
-
-    5.  RESTART YOUR NEXT.JS SERVER: This is crucial. Stop your development server (Ctrl+C
-        in the terminal) and restart it (e.g., 'npm run dev'). Next.js only loads
-        environment variables on startup.
-
-    ------------------------------------------------------------------------------------
-    The application cannot function until these Firebase credentials are correctly configured
-    in your local development environment.
+    Please double-check the values in src/lib/firebase.ts against your Firebase project settings.
     ------------------------------------------------------------------------------------
   `;
-  // This error will halt execution and be shown prominently in your server console.
   throw new Error(errorMessage);
 }
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
 
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
