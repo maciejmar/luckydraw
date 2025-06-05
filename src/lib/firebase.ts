@@ -43,21 +43,14 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
   };
   drawsStore[drawId] = newDrawData;
   console.log(`[InMemoryStore] Successfully created draw: ${drawId}`, newDrawData);
-  console.log(`[InMemoryStore] drawsStore keys after create for ${drawId}:`, Object.keys(drawsStore)); // Added this log
 };
 
 export const getDrawSnapshot = async (drawId: string): Promise<DrawData | null> => {
   console.log(`[InMemoryStore] Fetching snapshot for draw: ${drawId}`);
-  console.log(`[InMemoryStore] Current drawsStore state (keys: ${Object.keys(drawsStore).join(', ')}). Looking for ${drawId}.`);
-  // To see the full store content, uncomment the next line, but be wary of large objects in logs.
-  // console.log(`[InMemoryStore] Full drawsStore content:`, JSON.stringify(drawsStore));
-  
+  // console.log(`[InMemoryStore] Current drawsStore state:`, drawsStore); // For debugging, can be verbose
   const draw = drawsStore[drawId] || null;
-  
   if (!draw) {
     console.warn(`[InMemoryStore] Draw ${drawId} NOT FOUND in store.`);
-  } else {
-    // console.log(`[InMemoryStore] Draw ${drawId} FOUND.`);
   }
   return draw;
 };
@@ -78,7 +71,7 @@ export const addParticipantToDb = async (drawId: string, participant: Participan
     return; // Don't throw, just don't add
   }
   draw.participants.push(participant);
-  console.log(`[InMemoryStore] Participant added. Current participants for ${drawId}:`, draw.participants);
+  console.log(`[InMemoryStore] Participant added. Current participants for ${drawId}:`, draw.participants.length);
 };
 
 export const setDrawWinnerInDb = async (drawId: string, winner: FairWinnerSelectionOutput): Promise<void> => {
@@ -107,6 +100,3 @@ export async function _clearDrawsStore(): Promise<void> {
   drawsStore = {};
   console.log("[InMemoryStore] Store cleared.");
 };
-
-// Explicitly no database export
-// export const database = {}; // Removed: Causes "A 'use server' file can only export async functions"
