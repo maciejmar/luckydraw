@@ -1,7 +1,7 @@
 
 'use server';
 
-// This file now simulates a database using in-memory storage.
+// This file now simulates a database using in-memory storage with polling.
 
 import type { FairWinnerSelectionOutput } from '@/ai/flows/fair-winner-selection';
 
@@ -24,20 +24,6 @@ export interface DrawData {
 
 // --- In-Memory Store ---
 let drawsStore: { [drawId: string]: DrawData } = {};
-let listenersStore: { [drawId: string]: Array<(data: DrawData | null) => void> } = {};
-
-// Helper to notify listeners
-const notifyListeners = (drawId: string) => {
-  const listeners = listenersStore[drawId] || [];
-  const data = drawsStore[drawId] || null;
-  listeners.forEach(listener => {
-    try {
-      listener(data);
-    } catch (e) {
-      console.error("Error in listener for drawId", drawId, e);
-    }
-  });
-};
 
 // --- Draw Management Functions (In-Memory Version) ---
 
@@ -56,31 +42,11 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
   };
   drawsStore[drawId] = newDrawData;
   console.log(`[InMemoryStore] Successfully created draw: ${drawId}`, newDrawData);
-  notifyListeners(drawId);
 };
 
-export const getDrawData = async (drawId: string, callback: (data: DrawData | null) => void): Promise<() => void> => {
-  console.log(`[InMemoryStore] Setting up listener for draw: ${drawId}`);
-  if (!listenersStore[drawId]) {
-    listenersStore[drawId] = [];
-  }
-  listenersStore[drawId].push(callback);
-
-  // Call immediately with current data
-  try {
-    callback(drawsStore[drawId] || null);
-  } catch (e) {
-    console.error("Error in initial callback for drawId", drawId, e);
-  }
-
-  // Return an unsubscribe function
-  return () => {
-    console.log(`[InMemoryStore] Tearing down listener for draw: ${drawId}`);
-    listenersStore[drawId] = (listenersStore[drawId] || []).filter(cb => cb !== callback);
-    if (listenersStore[drawId] && listenersStore[drawId].length === 0) {
-      delete listenersStore[drawId];
-    }
-  };
+export const getDrawSnapshot = async (drawId: string): Promise<DrawData | null> => {
+  console.log(`[InMemoryStore] Fetching snapshot for draw: ${drawId}`);
+  return drawsStore[drawId] || null;
 };
 
 export const addParticipantToDb = async (drawId: string, participant: Participant): Promise<void> => {
@@ -93,10 +59,18 @@ export const addParticipantToDb = async (drawId: string, participant: Participan
     throw new Error('This draw is not open for new participants.');
   }
   draw.participants = draw.participants || [];
+  // Ensure participant with the same name doesn't already exist (case-insensitive)
+  const existingParticipant = draw.participants.find(p => p.name.toLowerCase() === participant.name.toLowerCase());
+  if (existingParticipant) {
+    // This case should ideally be caught client-side, but as a safeguard:
+    console.warn(`[InMemoryStore] Participant with name "${participant.name}" already exists in draw ${drawId}. Not adding again.`);
+    // Optionally throw an error or return a status
+    // throw new Error(`Participant with name "${participant.name}" already exists.`);
+    return; 
+  }
   draw.participants.push(participant);
-  drawsStore[drawId] = { ...draw }; 
+  drawsStore[drawId] = { ...draw }; // Ensure change is reflected if draw was a copy
   console.log(`[InMemoryStore] Participant added. Current participants for ${drawId}:`, draw.participants);
-  notifyListeners(drawId);
 };
 
 export const setDrawWinnerInDb = async (drawId: string, winner: FairWinnerSelectionOutput): Promise<void> => {
@@ -109,7 +83,6 @@ export const setDrawWinnerInDb = async (drawId: string, winner: FairWinnerSelect
   draw.status = 'closed';
   drawsStore[drawId] = { ...draw };
   console.log(`[InMemoryStore] Winner set for ${drawId}:`, draw.winner);
-  notifyListeners(drawId);
 };
 
 export const updateDrawStatusInDb = async (drawId: string, status: DrawData['status']): Promise<void> => {
@@ -121,12 +94,10 @@ export const updateDrawStatusInDb = async (drawId: string, status: DrawData['sta
   draw.status = status;
   drawsStore[drawId] = { ...draw };
   console.log(`[InMemoryStore] Status updated for ${drawId}.`);
-  notifyListeners(drawId);
 };
 
 // Function to clear the store, useful for testing or resetting state in dev
-export const _clearDrawsStore = async (): Promise<void> => {
+export async function _clearDrawsStore(): Promise<void> {
   drawsStore = {};
-  listenersStore = {};
   console.log("[InMemoryStore] Store cleared.");
 };

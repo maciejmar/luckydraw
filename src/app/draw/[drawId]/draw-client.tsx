@@ -26,7 +26,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import WheelOfFortune from '@/components/WheelOfFortune';
 import { 
-  getDrawData, 
+  getDrawSnapshot, // Changed from getDrawData
   addParticipantToDb, 
   setDrawWinnerInDb, 
   updateDrawStatusInDb,
@@ -37,6 +37,8 @@ import {
 interface DrawClientProps {
   drawId: string;
 }
+
+const POLLING_INTERVAL_MS = 3000; // Poll every 3 seconds
 
 export default function DrawClient({ drawId }: DrawClientProps) {
   const [drawData, setDrawData] = useState<DrawData | null>(null);
@@ -58,62 +60,63 @@ export default function DrawClient({ drawId }: DrawClientProps) {
     '#90EE90', '#F0E68C', '#E6E6FA', '#FFB6C1', '#AFEEEE'
   ];
 
+  const fetchAndUpdateDrawData = useCallback(async () => {
+    // console.log(`[DrawClient] Polling for data: ${drawId}`);
+    try {
+      const data = await getDrawSnapshot(drawId);
+      // console.log(`[DrawClient] Received polled data for ${drawId}:`, data);
+      if (data) {
+        const sanitizedData = {
+          ...data,
+          participants: data.participants || [], 
+        };
+        setDrawData(sanitizedData);
+        if (sanitizedData.winner) {
+          setShowConfetti(true);
+          const winnerIdx = sanitizedData.participants.findIndex(p => p.userId === sanitizedData.winner!.winnerId);
+          setWheelWinnerIndex(winnerIdx >= 0 ? winnerIdx : null);
+          setIsLoadingAi(false); 
+        } else {
+          setShowConfetti(false);
+           if (!isLoadingAi && !isSpinning) {
+            setWheelWinnerIndex(null);
+          }
+        }
+        setError(null); // Clear previous errors on successful fetch
+      } else {
+        // Only set error if it's not the initial page load and data becomes null
+        // Or if it's initial load and data is null
+        if (!isPageLoading || (isPageLoading && !drawData)) {
+            setError(`Draw with ID "${drawId}" not found or has been cleared.`);
+        }
+        setDrawData(null);
+      }
+    } catch (err) {
+      console.error("[DrawClient] Error fetching draw data:", err);
+      const message = err instanceof Error ? err.message : "Could not fetch draw data.";
+      setError(message);
+      // toast({ title: 'Error', description: message, variant: 'destructive' });
+    } finally {
+      if (isPageLoading) setIsPageLoading(false);
+    }
+  }, [drawId, isPageLoading, drawData, isLoadingAi, isSpinning]);
+
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setQrCodeValue(window.location.href);
     }
 
     setIsPageLoading(true);
-    console.log(`[DrawClient] Subscribing to draw data for ${drawId}`);
-    
-    let unsubscribeFn: (() => void) | null = null;
+    fetchAndUpdateDrawData(); // Initial fetch
 
-    const setupListener = async () => {
-      try {
-        unsubscribeFn = await getDrawData(drawId, (data) => {
-          console.log(`[DrawClient] Received data for ${drawId}:`, data);
-          if (data) {
-            const sanitizedData = {
-              ...data,
-              participants: data.participants || [], 
-            };
-            setDrawData(sanitizedData);
-            if (sanitizedData.winner) {
-              setShowConfetti(true);
-              const winnerIdx = sanitizedData.participants.findIndex(p => p.userId === sanitizedData.winner!.winnerId);
-              setWheelWinnerIndex(winnerIdx >= 0 ? winnerIdx : null);
-              setIsLoadingAi(false); 
-            } else {
-              setShowConfetti(false);
-               if (!isLoadingAi && !isSpinning) {
-                setWheelWinnerIndex(null);
-              }
-            }
-          } else {
-            setError(`Draw with ID "${drawId}" not found.`);
-            setDrawData(null);
-          }
-          setIsPageLoading(false);
-        });
-      } catch (err) {
-        console.error("[DrawClient] Error setting up listener:", err);
-        const message = err instanceof Error ? err.message : "Could not set up draw listener.";
-        setError(message);
-        toast({ title: 'Error', description: message, variant: 'destructive' });
-        setIsPageLoading(false);
-      }
-    };
-
-    setupListener();
+    const intervalId = setInterval(fetchAndUpdateDrawData, POLLING_INTERVAL_MS);
 
     return () => {
-      console.log(`[DrawClient] Unsubscribing from draw data for ${drawId}`);
-      if (unsubscribeFn) {
-        unsubscribeFn();
-      }
+      clearInterval(intervalId);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drawId]); 
+  }, [drawId]); // fetchAndUpdateDrawData is memoized and stable if its own dependencies are stable
 
   const handleAddParticipant = useCallback(async () => {
     if (!drawData || drawData.status !== 'open') {
@@ -141,12 +144,13 @@ export default function DrawClient({ drawId }: DrawClientProps) {
       await addParticipantToDb(drawId, newParticipant); 
       setNewParticipantName('');
       toast({ title: 'Participant Added', description: `${newParticipant.name} has joined the draw!` });
+      fetchAndUpdateDrawData(); // Re-fetch immediately after adding
     } catch (err) {
       console.error('Failed to add participant:', err);
       const message = err instanceof Error ? err.message : 'Could not add participant.';
       toast({ title: 'Error', description: message, variant: 'destructive' });
     }
-  }, [newParticipantName, drawData, drawId, toast, participantColors]);
+  }, [newParticipantName, drawData, drawId, toast, participantColors, fetchAndUpdateDrawData]);
 
   const handleSelectWinner = async () => {
     if (!drawData || !drawData.participants || drawData.participants.length < 1) {
@@ -167,6 +171,7 @@ export default function DrawClient({ drawId }: DrawClientProps) {
 
     try {
       await updateDrawStatusInDb(drawId, 'selecting'); 
+      fetchAndUpdateDrawData(); // Update status for UI
       const aiInput: FairWinnerSelectionInput = {
         participants: drawData.participants.map(p => ({ userId: p.userId, joinTime: p.joinTime })),
         description: drawData.description
@@ -189,7 +194,8 @@ export default function DrawClient({ drawId }: DrawClientProps) {
       setIsSpinning(false);
       setAiSelectedWinner(null);
       if (drawData && drawData.status === 'selecting') {
-        await updateDrawStatusInDb(drawId, 'open'); 
+        await updateDrawStatusInDb(drawId, 'open');
+        fetchAndUpdateDrawData(); // Update status for UI
       }
     }
   };
@@ -200,6 +206,7 @@ export default function DrawClient({ drawId }: DrawClientProps) {
     if (aiSelectedWinner && drawData && drawData.status === 'selecting') {
       try {
         await setDrawWinnerInDb(drawId, aiSelectedWinner); 
+        fetchAndUpdateDrawData(); // Fetch the final state with winner
         toast({ 
           title: '🎉 Winner Confirmed! 🎉', 
           description: `${drawData.participants.find(p=>p.userId === aiSelectedWinner.winnerId)?.name} is the lucky winner! Reason: ${aiSelectedWinner.reason}`,
@@ -210,6 +217,7 @@ export default function DrawClient({ drawId }: DrawClientProps) {
         setError(message);
         toast({ title: 'Database Error', description: message, variant: 'destructive' });
         await updateDrawStatusInDb(drawId, 'open'); 
+        fetchAndUpdateDrawData(); // Update status for UI
       } finally {
         setIsLoadingAi(false);
         setAiSelectedWinner(null);
@@ -218,7 +226,7 @@ export default function DrawClient({ drawId }: DrawClientProps) {
         setShowConfetti(true);
         setIsLoadingAi(false);
     }
-  }, [aiSelectedWinner, drawData, drawId, toast]);
+  }, [aiSelectedWinner, drawData, drawId, toast, fetchAndUpdateDrawData]);
 
 
   const handleCopyLink = () => {
@@ -254,7 +262,7 @@ export default function DrawClient({ drawId }: DrawClientProps) {
     );
   }
   
-  if (!drawData) return null; 
+  if (!drawData) return null; // Should be caught by above, but as a safeguard
 
 
   return (
