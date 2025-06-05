@@ -52,12 +52,9 @@ ${missingHardcodedKeys.map(v => `      - ${v}`).join('\n')}
     ------------------------------------------------------------------------------------
   `;
   console.error(errorMessage);
-  // This error will halt execution and be shown prominently in the console.
-  // For client-side execution, it might not halt Next.js build but will prevent Firebase init.
-  if (typeof window === 'undefined') { // Only throw on server-side to potentially stop build
+  if (typeof window === 'undefined') { 
     throw new Error(errorMessage);
   } else {
-    // For client-side, log prominently and let UI handle lack of Firebase
     console.error("Firebase cannot be initialized due to missing hardcoded config. App functionality will be affected.");
   }
 }
@@ -93,11 +90,8 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
     status: 'open',
   };
   try {
-    // console.log(`[Firebase] Attempting to create draw in DB (draws/${drawId}):`, JSON.stringify(newDrawData));
     await set(drawRef, newDrawData);
-    // console.log(`[Firebase] Successfully created draw in DB (draws/${drawId})`);
   } catch (error) {
-    // console.error(`[Firebase] Failed to create draw in DB (draws/${drawId}):`, error);
     if (error instanceof Error) {
       throw new Error(`Error creating draw '${drawId}' in Firebase: ${error.message}`);
     }
@@ -164,3 +158,5 @@ export const updateDrawStatusInDb = async (drawId: string, status: DrawData['sta
 };
 
 export { database };
+
+    
