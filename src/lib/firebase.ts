@@ -73,24 +73,14 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
     createdAt: new Date().toISOString(),
     status: 'open',
   };
-
-  const WRITE_TIMEOUT_MS = 15000; // 15 seconds
-  
-  const writePromise = set(drawRef, newDrawData);
-  
-  const timeoutPromise = new Promise<void>((_, reject) => 
-    setTimeout(() => reject(new Error(`Firebase write operation timed out after ${WRITE_TIMEOUT_MS / 1000} seconds.`)), WRITE_TIMEOUT_MS)
-  );
-
+  // Reverted to simpler set without explicit timeout or extensive logging
   try {
-    console.log(`[Firebase] Attempting to create draw in DB: draws/${drawId} with data:`, JSON.stringify(newDrawData));
-    await Promise.race([writePromise, timeoutPromise]);
-    console.log(`[Firebase] Successfully created draw in DB: draws/${drawId}`);
+    await set(drawRef, newDrawData);
   } catch (error) {
-    console.error(`[Firebase] Failed to create draw in DB (draws/${drawId}):`, error);
+    console.error(`[Firebase] Error in createDrawInDb for draws/${drawId}:`, error);
+    // Re-throw the error to be handled by the calling function
     if (error instanceof Error) {
-        // Append more context to the error message
-        throw new Error(`Error creating draw '${drawId}' in Firebase: ${error.message}`);
+      throw new Error(`Error creating draw '${drawId}' in Firebase: ${error.message}`);
     }
     throw new Error(`An unknown error occurred while creating the draw '${drawId}' in Firebase.`);
   }
