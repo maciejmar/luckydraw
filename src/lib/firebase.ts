@@ -158,5 +158,3 @@ export const updateDrawStatusInDb = async (drawId: string, status: DrawData['sta
 };
 
 export { database };
-
-    
