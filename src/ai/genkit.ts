@@ -26,7 +26,20 @@ if (!apiKey) {
 }
 
 // Conditionally configure the googleAI plugin
-const googleAIPlugin = apiKey ? googleAI({ apiKey }) : googleAI();
+console.log('[Genkit] Attempting to create googleAIPlugin instance...');
+let googleAIPlugin;
+try {
+  googleAIPlugin = apiKey ? googleAI({ apiKey }) : googleAI();
+  console.log('[Genkit] Successfully created googleAIPlugin instance.');
+} catch (pluginError) {
+  console.error('[Genkit] CRITICAL ERROR: Failed to initialize googleAI plugin:', pluginError);
+  // If the plugin fails to initialize, we should not proceed with configuring genkit with a broken plugin.
+  // This will likely cause genkit() to fail or subsequent AI calls to fail.
+  // For now, we'll let it proceed so genkit() might throw its own error, or flows will fail.
+  // A more robust solution might involve a fallback or preventing app startup.
+  googleAIPlugin = googleAI(); // Fallback to default initialization, which will also likely fail if key is bad.
+}
+
 
 export const ai = genkit({
   plugins: [
@@ -34,3 +47,4 @@ export const ai = genkit({
   ],
   model: 'googleai/gemini-2.0-flash', // This is a default model, specific flows might override
 });
+

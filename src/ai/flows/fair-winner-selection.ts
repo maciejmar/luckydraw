@@ -38,8 +38,15 @@ export type FairWinnerSelectionOutput = z.infer<typeof FairWinnerSelectionOutput
 
 export async function fairWinnerSelection(input: FairWinnerSelectionInput): Promise<FairWinnerSelectionOutput> {
   console.log('[FairWinnerSelection Flow Entry] Called with input:', JSON.stringify(input));
-  console.log('[FairWinnerSelection Flow Entry] Checking process.env.GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Found' : 'NOT Found');
-  console.log('[FairWinnerSelection Flow Entry] Checking process.env.GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'Found' : 'NOT Found');
+  
+  const resolvedApiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  console.log('[FairWinnerSelection Flow Entry] Checking resolved API Key:', resolvedApiKey ? 'Found' : 'NOT Found');
+
+  if (!resolvedApiKey) {
+    console.error('[FairWinnerSelection Flow Entry] CRITICAL: API Key is missing. Throwing specific error.');
+    throw new Error('AI Service Configuration Error: API Key is missing. Please check server environment variables or .env file.');
+  }
+  
   return fairWinnerSelectionFlow(input);
 }
 
@@ -107,11 +114,20 @@ const fairWinnerSelectionFlow = ai.defineFlow(
         console.error(`[FairWinnerSelection Flow] Attempt ${attempt} FAILED. Error:`, errorMessage, error.stack);
 
         const isOverloadError = errorMessage.includes('503 Service Unavailable') || errorMessage.includes('model is overloaded') || errorMessage.includes('The model is overloaded') || errorMessage.includes('RESOURCE_EXHAUSTED');
-        const isApiKeyError = errorMessage.includes('API key not valid') || errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('PERMISSION_DENIED') || errorMessage.includes('FAILED_PRECONDITION');
+        // More specific API key error checks based on common error messages
+        const isApiKeyError = errorMessage.includes('API key not valid') || 
+                              errorMessage.includes('API_KEY_INVALID') || 
+                              errorMessage.includes('PERMISSION_DENIED') || // Often key-related
+                              errorMessage.includes('AUTH_ERROR') || // Generic auth
+                              errorMessage.includes('Failed to authenticate') ||
+                              errorMessage.includes('Invalid API key') ||
+                              errorMessage.includes('API key is missing') || // Our specific error from the check above
+                              errorMessage.includes('FAILED_PRECONDITION'); // Original error seen
 
         if (isApiKeyError) {
             console.error('[FairWinnerSelection Flow] API Key related error detected. Aborting retries.');
-            throw new Error('There seems to be an issue with the AI service API key configuration. Please check the server logs and API key setup.');
+            // Provide a more user-friendly message for API key issues
+            throw new Error('There seems to be an issue with the AI service API key configuration. Please verify the key and ensure it has the necessary permissions.');
         }
 
         if (!isOverloadError || attempt === MAX_RETRIES) {
@@ -130,3 +146,4 @@ const fairWinnerSelectionFlow = ai.defineFlow(
     throw new Error('Failed to select winner after multiple retries due to AI service issues.');
   }
 );
+
