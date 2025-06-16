@@ -29,7 +29,7 @@ let drawsStore: { [drawId: string]: DrawData } = {};
 // --- Draw Management Functions (In-Memory Version) ---
 
 export const createDrawInDb = async (drawId: string, description: string): Promise<void> => {
-  console.log(`[InMemoryStore] Attempting to create draw: ${drawId} with description: "${description}"`);
+  console.log(`[InMemoryStore] Attempting to create draw: ${drawId} with description: "${description}"`);  
   if (drawsStore[drawId]) {
     console.warn(`[InMemoryStore] Draw with ID "${drawId}" already exists. Overwriting.`);
   }

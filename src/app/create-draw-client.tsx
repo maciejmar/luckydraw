@@ -30,6 +30,9 @@ export default function CreateDrawClient() {
 
     setIsCreating(true);
     const drawId = uuidv4();
+
+    // Construct the URL for the specific draw page
+    const drawUrl = `${window.location.origin}/draw/${drawId}`;
     
     try {
       // Using the in-memory store version
@@ -38,7 +41,11 @@ export default function CreateDrawClient() {
         title: 'Draw Created (In-Memory)',
         description: `Your draw "${description.trim()}" is ready! Navigating...`,
       });
-      router.push(`/draw/${drawId}`);
+
+      // TODO: Use the drawUrl to generate a QR code here.
+      // You will need to integrate your QR code generation library and display the QR code to the user.
+
+      router.push(`/draw/${drawId}`); // Redirect to the new draw page
     } catch (error) {
       console.error("Failed to create draw or navigate:", error);
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
