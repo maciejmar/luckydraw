@@ -37,6 +37,9 @@ const FairWinnerSelectionOutputSchema = z.object({
 export type FairWinnerSelectionOutput = z.infer<typeof FairWinnerSelectionOutputSchema>;
 
 export async function fairWinnerSelection(input: FairWinnerSelectionInput): Promise<FairWinnerSelectionOutput> {
+  console.log('[FairWinnerSelection Flow Entry] Called with input:', JSON.stringify(input));
+  console.log('[FairWinnerSelection Flow Entry] Checking process.env.GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Found' : 'NOT Found');
+  console.log('[FairWinnerSelection Flow Entry] Checking process.env.GOOGLE_API_KEY:', process.env.GOOGLE_API_KEY ? 'Found' : 'NOT Found');
   return fairWinnerSelectionFlow(input);
 }
 
@@ -75,40 +78,55 @@ const fairWinnerSelectionFlow = ai.defineFlow(
     const RETRY_DELAY_MS = 2000; // 2 seconds
 
     if (!input.participants || input.participants.length === 0) {
+      console.error('[FairWinnerSelection Flow] No participants provided.');
       throw new Error('No participants provided for the draw.');
     }
+    console.log(`[FairWinnerSelection Flow] Starting selection for ${input.participants.length} participants.`);
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
+        console.log(`[FairWinnerSelection Flow] Attempt ${attempt} to call prompt.`);
         const {output} = await fairWinnerSelectionPrompt(input);
+        
         if (!output) {
+          console.error('[FairWinnerSelection Flow] AI did not return an output.');
           throw new Error('AI did not return an output.');
         }
+        console.log('[FairWinnerSelection Flow] AI returned output:', JSON.stringify(output));
+
         // Validate that the winnerId is one of the participants
         const participantIds = input.participants.map(p => p.userId);
         if (!participantIds.includes(output.winnerId)) {
-          console.error(`AI returned an invalid winnerId: ${output.winnerId}. Valid IDs: ${participantIds.join(', ')}`);
+          console.error(`[FairWinnerSelection Flow] AI returned an invalid winnerId: ${output.winnerId}. Valid IDs: ${participantIds.join(', ')}`);
           throw new Error(`AI returned a winnerId ('${output.winnerId}') that is not in the participant list.`);
         }
+        console.log(`[FairWinnerSelection Flow] Successfully selected winner: ${output.winnerId} on attempt ${attempt}.`);
         return output;
       } catch (error: any) {
-        const errorMessage = error.message || '';
-        const isOverloadError = errorMessage.includes('503 Service Unavailable') || errorMessage.includes('model is overloaded') || errorMessage.includes('The model is overloaded');
+        const errorMessage = error.message || String(error) || 'Unknown error during AI call';
+        console.error(`[FairWinnerSelection Flow] Attempt ${attempt} FAILED. Error:`, errorMessage, error.stack);
+
+        const isOverloadError = errorMessage.includes('503 Service Unavailable') || errorMessage.includes('model is overloaded') || errorMessage.includes('The model is overloaded') || errorMessage.includes('RESOURCE_EXHAUSTED');
+        const isApiKeyError = errorMessage.includes('API key not valid') || errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('PERMISSION_DENIED') || errorMessage.includes('FAILED_PRECONDITION');
+
+        if (isApiKeyError) {
+            console.error('[FairWinnerSelection Flow] API Key related error detected. Aborting retries.');
+            throw new Error('There seems to be an issue with the AI service API key configuration. Please check the server logs and API key setup.');
+        }
 
         if (!isOverloadError || attempt === MAX_RETRIES) {
-          console.error(`AI Winner Selection: Failed after ${attempt} attempts. Error:`, error);
-          // Re-throw the error to be caught by the client-side handler
+          console.error(`[FairWinnerSelection Flow] Failed after ${attempt} attempts. Re-throwing. Error:`, errorMessage);
           throw new Error(isOverloadError ? 'The AI service is currently busy. Please try again in a few moments.' : `An unexpected error occurred while selecting the winner: ${errorMessage}`);
         }
         
-        console.warn(`AI Winner Selection: Attempt ${attempt} failed due to AI service overload. Retrying in ${RETRY_DELAY_MS / 1000}s...`);
+        console.warn(`[FairWinnerSelection Flow] Attempt ${attempt} failed (possibly overload). Retrying in ${RETRY_DELAY_MS / 1000}s...`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       }
     }
     // This line should ideally not be reached if MAX_RETRIES > 0,
     // as the loop will either return a result or throw an error.
     // But as a fallback:
+    console.error('[FairWinnerSelection Flow] Failed to select winner after multiple retries due to AI service issues.');
     throw new Error('Failed to select winner after multiple retries due to AI service issues.');
   }
 );
-

@@ -9,7 +9,7 @@ import {googleAI} from '@genkit-ai/googleai';
 const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
 
 // Log the API key for debugging
-console.log('[Genkit] Attempting to use API Key:', apiKey ? 'Key found (masked for safety in this log)' : 'Key NOT found');
+console.log('[Genkit] Attempting to use API Key from process.env:', apiKey ? 'Key found (masked for safety in this log)' : 'Key NOT found in process.env');
 if (apiKey) {
   // To actually see the key for debugging, uncomment the next line.
   // Be sure to remove or re-comment it after debugging.
@@ -19,18 +19,19 @@ if (apiKey) {
 
 if (!apiKey) {
   // This console log will be visible in the server logs if the key is missing.
-  // The error will still occur during AI calls, but this helps confirm the key isn't found at initialization.
   console.warn(
-    'GEMINI_API_KEY or GOOGLE_API_KEY environment variable not found. ' +
-    'AI functionality will likely fail. Please ensure it is set in your environment.'
+    '[Genkit] GEMINI_API_KEY or GOOGLE_API_KEY environment variable not found at Genkit initialization. ' +
+    'The googleAI plugin will attempt to find it. If it fails, AI functionality will likely fail. Please ensure it is set in your environment.'
   );
 }
 
+// Conditionally configure the googleAI plugin
+const googleAIPlugin = apiKey ? googleAI({ apiKey }) : googleAI();
+
 export const ai = genkit({
   plugins: [
-    googleAI({
-      apiKey: apiKey, // Pass the API key here. If undefined, the plugin might still throw, but we've tried.
-    }),
+    googleAIPlugin,
   ],
   model: 'googleai/gemini-2.0-flash', // This is a default model, specific flows might override
 });
+

@@ -35,8 +35,8 @@ export default function CreateDrawClient() {
     const drawUrl = `${window.location.origin}/draw/${drawId}`;
     
     try {
-      // Using the in-memory store version
-      await createDrawInDb(drawId, description.trim());
+      // Using the in-memory store version, wait for it to complete
+ await createDrawInDb(drawId, description.trim());
       toast({
         title: 'Draw Created (In-Memory)',
         description: `Your draw "${description.trim()}" is ready! Navigating...`,
@@ -45,7 +45,8 @@ export default function CreateDrawClient() {
       // TODO: Use the drawUrl to generate a QR code here.
       // You will need to integrate your QR code generation library and display the QR code to the user.
 
-      router.push(`/draw/${drawId}`); // Redirect to the new draw page
+      // Redirect to the new draw page after successful creation
+      router.push(`/draw/${drawId}`);
     } catch (error) {
       console.error("Failed to create draw or navigate:", error);
       const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";

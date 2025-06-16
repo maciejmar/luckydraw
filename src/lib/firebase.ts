@@ -1,10 +1,9 @@
 
 'use server';
 
-// This file now simulates a database using in-memory storage.
-// Data is temporary and lost on server restart or if multiple instances are used.
-
 import type { FairWinnerSelectionOutput } from '@/ai/flows/fair-winner-selection';
+import { db } from './firebase-init'; // Assuming you have firebase-init.ts for initialization
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 // --- Type Definitions ---
 export interface Participant {
@@ -20,19 +19,17 @@ export interface DrawData {
   participants: Participant[];
   winner: FairWinnerSelectionOutput | null;
   createdAt: string; // ISO string
-  status: 'open' | 'selecting' | 'closed';
+  status: 'open' | 'selecting' | 'closed'; // Added 'selecting' and 'closed' as possible statuses
 }
 
-// --- In-Memory Store ---
-let drawsStore: { [drawId: string]: DrawData } = {};
+// --- Firestore Collection Reference ---
+const drawsCollection = 'draws';
 
-// --- Draw Management Functions (In-Memory Version) ---
+// --- Draw Management Functions (Firestore Version) ---
 
 export const createDrawInDb = async (drawId: string, description: string): Promise<void> => {
-  console.log(`[InMemoryStore] Attempting to create draw: ${drawId} with description: "${description}"`);  
-  if (drawsStore[drawId]) {
-    console.warn(`[InMemoryStore] Draw with ID "${drawId}" already exists. Overwriting.`);
-  }
+  console.log(`[Firestore] Attempting to create draw: ${drawId} with description: \"${description}\"`);
+  const drawRef = doc(db, drawsCollection, drawId);
   const newDrawData: DrawData = {
     drawId,
     description,
@@ -41,62 +38,93 @@ export const createDrawInDb = async (drawId: string, description: string): Promi
     createdAt: new Date().toISOString(),
     status: 'open',
   };
-  drawsStore[drawId] = newDrawData;
-  console.log(`[InMemoryStore] Successfully created draw: ${drawId}`, newDrawData);
+  try {
+    await setDoc(drawRef, newDrawData);
+    console.log(`[Firestore] Successfully created draw: ${drawId}`);
+  } catch (error) {
+    console.error(`[Firestore] Error creating draw ${drawId}:`, error);
+    throw error; // Re-throw the error to be caught by the caller
+  }
 };
 
 export const getDrawSnapshot = async (drawId: string): Promise<DrawData | null> => {
-  console.log(`[InMemoryStore] Fetching snapshot for draw: ${drawId}`);
-  // console.log(`[InMemoryStore] Current drawsStore state:`, drawsStore); // For debugging, can be verbose
-  const draw = drawsStore[drawId] || null;
-  if (!draw) {
-    console.warn(`[InMemoryStore] Draw ${drawId} NOT FOUND in store.`);
+  console.log(`[Firestore] Fetching snapshot for draw: ${drawId}`);
+  const drawRef = doc(db, drawsCollection, drawId);
+  try {
+    const docSnap = await getDoc(drawRef);
+    if (docSnap.exists()) {
+      const drawData = docSnap.data() as DrawData;
+      console.log(`[Firestore] Successfully fetched draw: ${drawId}`);
+      return drawData;
+    } else {
+      console.warn(`[Firestore] Draw ${drawId} NOT FOUND.`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`[Firestore] Error fetching draw ${drawId}:`, error);
+    throw error; // Re-throw the error
   }
-  return draw;
 };
 
 export const addParticipantToDb = async (drawId: string, participant: Participant): Promise<void> => {
-  console.log(`[InMemoryStore] Adding participant to draw: ${drawId}`, participant);
-  const draw = drawsStore[drawId];
-  if (!draw) {
-    throw new Error(`Draw with ID "${drawId}" not found.`);
+  console.log(`[Firestore] Adding participant to draw: ${drawId}`, participant);
+  const drawRef = doc(db, drawsCollection, drawId);
+  try {
+    const docSnap = await getDoc(drawRef);
+    if (!docSnap.exists()) {
+      throw new Error(`Draw with ID \"${drawId}\" not found.`);
+    }
+    const drawData = docSnap.data() as DrawData;
+
+    if (drawData.status !== 'open') {
+      throw new Error('This draw is not open for new participants.');
+    }
+
+    const existingParticipant = drawData.participants.find(p => p.name.toLowerCase() === participant.name.toLowerCase());
+    if (existingParticipant) {
+      console.warn(`[Firestore] Participant with name \"${participant.name}\" already exists in draw ${drawId}. Not adding again.`);
+      return;
+    }
+
+    const updatedParticipants = [...drawData.participants, participant];
+    await updateDoc(drawRef, { participants: updatedParticipants });
+    console.log(`[Firestore] Participant added to ${drawId}. Current participants:`, updatedParticipants.length);
+  } catch (error) {
+    console.error(`[Firestore] Error adding participant to draw ${drawId}:`, error);
+    throw error;
   }
-  if (draw.status !== 'open') {
-    throw new Error('This draw is not open for new participants.');
-  }
-  draw.participants = draw.participants || []; // Ensure participants array exists
-  const existingParticipant = draw.participants.find(p => p.name.toLowerCase() === participant.name.toLowerCase());
-  if (existingParticipant) {
-    console.warn(`[InMemoryStore] Participant with name "${participant.name}" already exists in draw ${drawId}. Not adding again.`);
-    return; // Don't throw, just don't add
-  }
-  draw.participants.push(participant);
-  console.log(`[InMemoryStore] Participant added. Current participants for ${drawId}:`, draw.participants.length);
 };
 
 export const setDrawWinnerInDb = async (drawId: string, winner: FairWinnerSelectionOutput): Promise<void> => {
-  console.log(`[InMemoryStore] Setting winner for draw: ${drawId}`, winner);
-  const draw = drawsStore[drawId];
-  if (!draw) {
-    throw new Error(`Draw with ID "${drawId}" not found.`);
+  console.log(`[Firestore] Setting winner for draw: ${drawId}`, winner);
+  const drawRef = doc(db, drawsCollection, drawId);
+  try {
+    const docSnap = await getDoc(drawRef);
+    if (!docSnap.exists()) {
+      throw new Error(`Draw with ID \"${drawId}\" not found.`);
+    }
+    // Optional: Add a check here if status is not 'selecting' to prevent setting winner multiple times
+
+    await updateDoc(drawRef, { winner: winner, status: 'closed' });
+    console.log(`[Firestore] Winner set for ${drawId}.`);
+  } catch (error) {
+    console.error(`[Firestore] Error setting winner for draw ${drawId}:`, error);
+    throw error;
   }
-  draw.winner = winner;
-  draw.status = 'closed';
-  console.log(`[InMemoryStore] Winner set for ${drawId}:`, draw.winner);
 };
 
 export const updateDrawStatusInDb = async (drawId: string, status: DrawData['status']): Promise<void> => {
-  console.log(`[InMemoryStore] Updating status for draw: ${drawId} to ${status}`);
-  const draw = drawsStore[drawId];
-  if (!draw) {
-    throw new Error(`Draw with ID "${drawId}" not found.`);
+  console.log(`[Firestore] Updating status for draw: ${drawId} to ${status}`);
+  const drawRef = doc(db, drawsCollection, drawId);
+  try {
+    const docSnap = await getDoc(drawRef);
+    if (!docSnap.exists()) {
+      throw new Error(`Draw with ID \"${drawId}\" not found.`);
+    }
+    await updateDoc(drawRef, { status: status });
+    console.log(`[Firestore] Status updated for ${drawId}.`);
+  } catch (error) {
+    console.error(`[Firestore] Error updating status for draw ${drawId}:`, error);
+    throw error;
   }
-  draw.status = status;
-  console.log(`[InMemoryStore] Status updated for ${drawId}.`);
-};
-
-// Function to clear the store, useful for testing or resetting state in dev
-export async function _clearDrawsStore(): Promise<void> {
-  drawsStore = {};
-  console.log("[InMemoryStore] Store cleared.");
 };
