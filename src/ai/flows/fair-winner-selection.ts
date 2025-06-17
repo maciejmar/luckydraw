@@ -101,7 +101,6 @@ const fairWinnerSelectionFlow = ai.defineFlow(
         }
         console.log('[FairWinnerSelection Flow] AI returned output:', JSON.stringify(output));
 
-        // Validate that the winnerId is one of the participants
         const participantIds = input.participants.map(p => p.userId);
         if (!participantIds.includes(output.winnerId)) {
           console.error(`[FairWinnerSelection Flow] AI returned an invalid winnerId: ${output.winnerId}. Valid IDs: ${participantIds.join(', ')}`);
@@ -111,39 +110,39 @@ const fairWinnerSelectionFlow = ai.defineFlow(
         return output;
       } catch (error: any) {
         const errorMessage = error.message || String(error) || 'Unknown error during AI call';
-        console.error(`[FairWinnerSelection Flow] Attempt ${attempt} FAILED. Error:`, errorMessage, error.stack);
+        // Log the full error details for server-side debugging
+        console.error(`[FairWinnerSelection Flow] Attempt ${attempt} FAILED. Error Message: ${errorMessage}`, error.stack ? `\nStack: ${error.stack}` : '', '\nFull Error Object:', error);
+
 
         const isOverloadError = errorMessage.includes('503 Service Unavailable') || errorMessage.includes('model is overloaded') || errorMessage.includes('The model is overloaded') || errorMessage.includes('RESOURCE_EXHAUSTED');
-        // More specific API key error checks based on common error messages
         const isApiKeyError = errorMessage.includes('API key not valid') || 
                               errorMessage.includes('API_KEY_INVALID') || 
-                              errorMessage.includes('PERMISSION_DENIED') || // Often key-related
-                              errorMessage.includes('AUTH_ERROR') || // Generic auth
+                              errorMessage.includes('PERMISSION_DENIED') || 
+                              errorMessage.includes('AUTH_ERROR') || 
                               errorMessage.includes('Failed to authenticate') ||
                               errorMessage.includes('Invalid API key') ||
-                              errorMessage.includes('API key is missing') || // Our specific error from the check above
-                              errorMessage.includes('FAILED_PRECONDITION'); // Original error seen
+                              errorMessage.includes('API key is missing') || 
+                              errorMessage.includes('FAILED_PRECONDITION');
 
         if (isApiKeyError) {
             console.error('[FairWinnerSelection Flow] API Key related error detected. Aborting retries.');
-            // Provide a more user-friendly message for API key issues
-            throw new Error('There seems to be an issue with the AI service API key configuration. Please verify the key and ensure it has the necessary permissions.');
+            // Throw a very simple error to test serialization
+            throw new Error('AI_CONFIG_ERROR_API_KEY'); 
         }
 
         if (!isOverloadError || attempt === MAX_RETRIES) {
-          console.error(`[FairWinnerSelection Flow] Failed after ${attempt} attempts. Re-throwing. Error:`, errorMessage);
-          throw new Error(isOverloadError ? 'The AI service is currently busy. Please try again in a few moments.' : `An unexpected error occurred while selecting the winner: ${errorMessage}`);
+          console.error(`[FairWinnerSelection Flow] Failed after ${attempt} attempts. Re-throwing simplified error. Original error:`, errorMessage);
+          // Throw a very simple, generic error message to test serialization
+          throw new Error(isOverloadError ? 'AI_SERVICE_BUSY' : 'AI_FLOW_UNEXPECTED_ERROR');
         }
         
         console.warn(`[FairWinnerSelection Flow] Attempt ${attempt} failed (possibly overload). Retrying in ${RETRY_DELAY_MS / 1000}s...`);
         await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
       }
     }
-    // This line should ideally not be reached if MAX_RETRIES > 0,
-    // as the loop will either return a result or throw an error.
-    // But as a fallback:
-    console.error('[FairWinnerSelection Flow] Failed to select winner after multiple retries due to AI service issues.');
-    throw new Error('Failed to select winner after multiple retries due to AI service issues.');
+    // Fallback if loop finishes without returning or throwing (should not happen with MAX_RETRIES > 0)
+    console.error('[FairWinnerSelection Flow] Failed to select winner after multiple retries due to AI service issues. Throwing simplified error.');
+    throw new Error('AI_FLOW_RETRIES_EXHAUSTED');
   }
 );
 
