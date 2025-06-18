@@ -47,6 +47,7 @@ interface DrawClientProps {
   drawId: string;
 }
 
+
 const POLLING_INTERVAL_MS = 3000; // Poll every 3 seconds
 
 export default function DrawClient({ drawId }: DrawClientProps) {
