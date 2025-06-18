@@ -17,7 +17,10 @@ interface WheelOfFortuneProps {
 }
 
 const WheelOfFortune: FC<WheelOfFortuneProps> = ({ participants, winnerIndex, isSpinning, onSpinEnd }) => {
-  const numSegments = participants.length;
+  // Ensure participants is always an array
+  const validParticipants = Array.isArray(participants) ? participants : [];
+
+  const numSegments = validParticipants.length;
   const segmentAngle = numSegments > 0 ? 360 / numSegments : 360;
   const radius = 150;
   const center = 160; // SVG canvas is 320x320, so center is (160,160)

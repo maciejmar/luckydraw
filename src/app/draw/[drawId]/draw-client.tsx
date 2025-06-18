@@ -316,9 +316,190 @@ export default function DrawClient({ drawId }: DrawClientProps) {
       <div className="mb-4 p-4 bg-card border rounded-lg shadow">
         <h2 className="text-2xl font-semibold text-primary">{drawData.description}</h2>
         <p className="text-sm text-muted-foreground">Draw ID: {drawId}</p>
-        <p className="text-xs text-muted-foreground">Status: {drawData.status}</p>
+        <p className="text-xs text-muted-foreground">
+          Status: {drawData.status.charAt(0).toUpperCase() + drawData.status.slice(1)}
+        </p>
+ {drawData.createdAt && (
+ <p className="text-xs text-muted-foreground">
+            Created:{' '}
+ {formatDistanceToNow(new Date(drawData.createdAt), {
+ suffix: true,
+ })}
+ </p>
+ )}
       </div>
-      {/* Remainder of JSX unchanged for brevity */}
+
+      {error && (
+        <Card className="border-destructive bg-destructive/10 shadow-lg mt-6 rounded-xl">
+ <CardHeader>
+ <CardTitle className="flex items-center gap-2 text-destructive text-lg">
+ <AlertTriangle /> Error
+ </CardTitle>
+ </CardHeader>
+ <CardContent>
+ <p className="text-destructive-foreground">{error}</p>
+ </CardContent>
+ </Card>
+ )}
+
+ {/* Main Layout */}
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+ {/* Left Column: Wheel, Winner Info, Select Winner Button */}
+ <div className="flex flex-col items-center">
+          <Card className="w-full max-w-md mb-6 shadow-lg rounded-xl">
+ <CardContent className="flex flex-col items-center p-6">
+              {drawData.participants.length > 0 ? (
+                <WheelOfFortune
+                  segments={drawData.participants.map((p) => p.name)}
+                  participants={drawData.participants.map(p => ({ userId: p.userId, name: p.name, color: p.color }))}
+                  winnerIndex={wheelWinnerIndex}
+                  isSpinning={isSpinning}
+                  onSpinEnd={handleWheelSpinEnd}
+                />
+ ) : (
+ <div className="text-center text-muted-foreground">
+ <p>Add participants to spin the wheel!</p>
+ </div>
+ )}
+
+              {drawData.status === 'open' && drawData.participants.length > 0 && (
+ <Button
+ onClick={handleSelectWinner}
+                  className="mt-6 w-full"
+ disabled={isLoadingAi || isSpinning || drawData.status !== 'open'}
+ >
+                  {isLoadingAi ? (
+ <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+ ) : (
+ <PlayCircle className="mr-2 h-4 w-4" />
+ )}
+                  {isLoadingAi ? 'Selecting Winner...' : 'Select Winner'}
+ </Button>
+ )}
+
+              {drawData.winner && winnerParticipantDetails && (
+ <div className="mt-8 text-center">
+ <PartyPopper className="w-12 h-12 text-accent mx-auto mb-2" />
+ <p className="text-2xl font-bold text-primary">Winner:</p>
+ <p className="text-3xl font-extrabold text-accent">
+                    {winnerParticipantDetails.name}
+ </p>
+                  {drawData.winner.reason && (
+ <p className="text-sm text-muted-foreground mt-2">
+                      Reason: {drawData.winner.reason}
+ </p>
+ )}
+ </div>
+ )}
+ </CardContent>
+ </Card>
+ </div>
+
+ {/* Right Column: QR Code, Add Participant, Participant List */}
+ <div className="flex flex-col gap-6">
+ {/* QR Code Section */}
+            <Card className="shadow-lg rounded-xl">
+ <CardHeader>
+ <CardTitle className="flex items-center gap-2">
+ <QrCode className="w-5 h-5" /> Share This Draw
+ </CardTitle>
+ <CardDescription>
+                    Scan the QR code or share the link below for participants to join.
+ </CardDescription>
+ </CardHeader>
+ <CardContent className="flex flex-col items-center gap-4">
+ {qrCodeValue && (
+ <QRCode value={qrCodeValue} size={180} level="H" />
+ )}
+ <div className="flex w-full max-w-sm items-center space-x-2">
+ <Input type="text" value={qrCodeValue} readOnly className="flex-grow" />
+ <Button onClick={handleCopyLink} size="sm">
+ <Copy className="h-4 w-4 mr-1" /> Copy
+ </Button>
+ </div>
+ </CardContent>
+ </Card>
+
+ {/* Add Participant Section */}
+            <Card className="shadow-lg rounded-xl">
+ <CardHeader>
+ <CardTitle className="flex items-center gap-2">
+ <UserPlus className="w-5 h-5" /> Add Participant
+ </CardTitle>
+ </CardHeader>
+ <CardContent className="flex flex-col gap-4">
+ <div className="grid w-full items-center gap-1.5">
+ <Label htmlFor="participant-name">Participant Name</Label>
+ <Input
+ type="text"
+ id="participant-name"
+ placeholder="Enter name"
+ value={newParticipantName}
+ onChange={(e) => setNewParticipantName(e.target.value)}
+ onKeyDown={(e) => {
+ if (e.key === 'Enter') {
+ handleAddParticipant();
+                        }
+                      }}
+ disabled={drawData.status !== 'open' || isLoadingAi || isSpinning}
+ />
+ </div>
+ <Button
+ onClick={handleAddParticipant}
+ disabled={
+ drawData.status !== 'open' ||
+ !newParticipantName.trim() ||
+ isLoadingAi ||
+ isSpinning
+ }
+ >
+ <UserPlus className="mr-2 h-4 w-4" /> Add Participant
+ </Button>
+ </CardContent>
+ </Card>
+
+ {/* Participant List Section */}
+            <Card className="shadow-lg rounded-xl">
+ <CardHeader>
+ <CardTitle className="flex items-center gap-2">
+ <UsersRound className="w-5 h-5" /> Participants ({drawData.participants.length})
+ </CardTitle>
+ </CardHeader>
+              {drawData.participants.length > 0 ? (
+ <CardContent className="p-0">
+ <ScrollArea className="h-60 w-full rounded-md border">
+ <div className="p-4">
+                        {drawData.participants.map((participant, index) => (
+ <React.Fragment key={participant.userId}>
+ <div className="flex justify-between items-center py-2">
+ <div className="flex items-center gap-2">
+ <span
+ className="inline-block w-3 h-3 rounded-full"
+ style={{ backgroundColor: participant.color }}
+                          ></span>
+ <span className="font-medium">{participant.name}</span>
+ </div>
+ <span className="text-sm text-muted-foreground">
+                              Joined:{' '}
+                              {formatDistanceToNow(new Date(participant.joinTime), {
+ suffix: true,
+                              })}
+ </span>
+ </div>
+                          {index < drawData.participants.length - 1 && <Separator />}
+ </React.Fragment>
+                        ))}
+ </div>
+ </ScrollArea>
+ </CardContent>
+ ) : (
+ <CardContent>
+ <p className="text-muted-foreground">No participants added yet.</p>
+ </CardContent>
+ )}
+ </Card>
+ </div>
+ </div>
     </>
   );
 }

@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
   },
   allowedDevOrigins: [
     'http://localhost:9003',
+    'https://9000-firebase-studio-1748521216876.cluster-c23mj7ubf5fxwq6nrbev4ugaxa.cloudworkstations.dev',
     'https://9003-firebase-studio-1748521216876.cluster-c23mj7ubf5fxwq6nrbev4ugaxa.cloudworkstations.dev',
   ],
   images: {

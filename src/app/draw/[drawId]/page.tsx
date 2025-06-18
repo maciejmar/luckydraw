@@ -6,12 +6,15 @@ interface DrawPageProps {
   };
 }
 
-export default function DrawPage({ params }: DrawPageProps) {
-  return <DrawClient drawId={params.drawId} />;
+export default async function DrawPage({ params }: DrawPageProps) {
+  // Await params to unwrap any promise
+  const { drawId } = await params;
+  return <DrawClient drawId={drawId} />;
 }
 
 export async function generateMetadata({ params }: DrawPageProps) {
+  const { drawId } = await params;
   return {
-    title: `Draw: ${params.drawId} | LuckyDraw`,
+    title: `Draw: ${drawId} | LuckyDraw`,
   };
 }
